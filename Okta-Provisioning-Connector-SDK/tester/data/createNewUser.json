@@ -1,0 +1,28 @@
+{
+    "schemas": ["urn:scim:schemas:core:1.0"],
+    "userName": "myemail@domain.com",
+    "emails": [
+        {
+            "primary": true,
+            "value": "myemail@domain.com",
+            "type": "primary"
+        },
+        {
+            "primary": false,
+            "value": "mypersonalemail@domain.com",
+            "type": "secondary"
+        }
+    ],
+    "phoneNumbers": [
+        {
+            "value": "123-444-5555",
+            "type": "mobile"
+        }
+    ],
+    "name": {
+        "familyName": "LastName",
+        "givenName": "FirstName"
+    },
+    "active": true,
+    "password": "verySecure"
+}

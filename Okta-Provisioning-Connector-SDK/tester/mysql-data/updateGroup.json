@@ -1,0 +1,18 @@
+{
+    "schemas": ["urn:scim:schemas:core:1.0", "urn:okta:custom:group:1.0"],
+    "id": "d010",
+    "displayName": "Cloud Services 2",
+    "members": [
+        {
+            "value": "499977",
+            "display": "WeisertMartial@mysql-db.org"
+        },
+        {
+            "value": "499974",
+            "display": "PiazzaShuichi@mysql-db.org"
+        }
+    ],
+    "urn:okta:custom:group:1.0": {
+        "description": "SaaS Cloud Services Integration Group"
+    }
+}

@@ -1,0 +1,13 @@
+[ 19-12-2014 19:41:08.096 ] [  INFO] [ScimClientImpl:359] - making GET request to http://localhost:8080/scim-mysql-connector-example-01.02.00-SNAPSHOT/Users?startIndex=1&count=100
+[ 19-12-2014 19:41:08.947 ] [  INFO] [ScimClientImpl:359] - making GET request to http://localhost:8080/scim-mysql-connector-example-01.02.00-SNAPSHOT/Users?startIndex=101&count=100
+[ 19-12-2014 19:41:09.413 ] [  INFO] [ScimClientImpl:359] - making GET request to http://localhost:8080/scim-mysql-connector-example-01.02.00-SNAPSHOT/Users?startIndex=201&count=100
+[ 19-12-2014 19:41:10.028 ] [  INFO] [ScimClientImpl:359] - making GET request to http://localhost:8080/scim-mysql-connector-example-01.02.00-SNAPSHOT/Users?startIndex=301&count=100
+[ 19-12-2014 19:41:10.391 ] [  INFO] [ScimClientImpl:359] - making GET request to http://localhost:8080/scim-mysql-connector-example-01.02.00-SNAPSHOT/Users?startIndex=401&count=100
+[ 19-12-2014 19:41:10.660 ] [  INFO] [ScimClientImpl:359] - making GET request to http://localhost:8080/scim-mysql-connector-example-01.02.00-SNAPSHOT/Users?startIndex=501&count=100
+[ 19-12-2014 19:41:11.233 ] [  INFO] [ScimClientImpl:359] - making GET request to http://localhost:8080/scim-mysql-connector-example-01.02.00-SNAPSHOT/Users?startIndex=601&count=100
+[ 19-12-2014 19:41:11.523 ] [  INFO] [ScimClientImpl:359] - making GET request to http://localhost:8080/scim-mysql-connector-example-01.02.00-SNAPSHOT/Users?startIndex=701&count=100
+[ 19-12-2014 19:41:12.011 ] [  INFO] [ScimClientImpl:359] - making GET request to http://localhost:8080/scim-mysql-connector-example-01.02.00-SNAPSHOT/Users?startIndex=801&count=100
+[ 19-12-2014 19:41:12.274 ] [  INFO] [ScimClientImpl:359] - making GET request to http://localhost:8080/scim-mysql-connector-example-01.02.00-SNAPSHOT/Users?startIndex=901&count=100
+[ 19-12-2014 19:41:12.734 ] [  INFO] [ProvisioningMethodTester:158] - downloadUsers: 1000 Users returned.
+[ 19-12-2014 19:41:13.554 ] [  INFO] [ProvisioningMethodTester:190] - downloadUsers: Users returned from connector logged to /opt/Okta-Provisioning-Connector-SDK/tester/downloadUsers-20141219-194113.txt
+[ 19-12-2014 19:41:13.555 ] [  INFO] [TesterRuntime:109] - OK!
