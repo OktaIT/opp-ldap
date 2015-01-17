@@ -246,20 +246,9 @@ public class SCIMServiceImpl implements SCIMService {
 		String id = generateNextId(USER_RESOURCE);
 		user.setId(id);
 		LOGGER.debug("[createUser] Creating User: " + user.getName().getFormattedName());
-	/**
-	* Below is an example to show how to deal with exceptional conditions while writing the connector.
-	* If you cannot complete the UserManagement operation on the on premises
-	* application because of any error/exception, you should throw the OnPremUserManagementException as shown below.
-	* <b>Note:</b> You can throw this exception from all the CRUD (Create/Retrieve/Update/Delete) operations defined on
-	* Users/Groups in the SCIM interface.
-	*/
 		if (userMap == null) {
-		//Note that the Error Code "o01234" is arbitrary - You can use any code that you want to.
-		//You can specify a url which has the documentation/information to help figure out the issue.
-		//You can also specify an underlying exception (null in the example below)
 		throw new OnPremUserManagementException("o01234", "Cannot create the user. The userMap is null", "http://some-help-url", null);
 		}
-
 		try {
 			LdapContext ctx = new InitialLdapContext(env, null);
 			Attributes attrs = constructAttrsFromUser(user);
@@ -279,15 +268,7 @@ public class SCIMServiceImpl implements SCIMService {
 	}
 
 	public SCIMUser updateUser(String id, SCIMUser user) throws OnPremUserManagementException, EntityNotFoundException {
-		/**
-		* Below is an example to show how to deal with exceptional conditions while writing the connector.
-		* If you cannot complete the UserManagement operation on the on premises
-		* application because of any error/exception, you should throw the OnPremUserManagementException as shown below
-		* <b>Note:</b> You can throw this exception from all the CRUD (Create/Retrieve/Update/Delete) operations defined on
-		* Users/Groups in the SCIM interface.
-		*/
 		if (userMap == null) {
-		//Note that the Error Code "o12345" is arbitrary - You can use any code that you want to.
 			throw new OnPremUserManagementException("o12345", "Cannot update the user. The userMap is null");
 		}
 		LOGGER.debug("[updateUser] Updating user: " + user.getName().getFormattedName());
@@ -299,6 +280,7 @@ public class SCIMServiceImpl implements SCIMService {
 				LdapContext ctx = new InitialLdapContext(env, null);
 				String dn = ldapUserPre + user.getUserName() + "," + ldapUserDn + ldapBaseDn;
 				ctx.destroySubcontext(dn);
+				LOGGER.info("[updateUser] User " + user.getName().getFormattedName() + " successfully deleted from Directory Service.");
 				if(user.isActive()) {
 					LOGGER.info("[updateUser] User is still active, re-adding user.");
 					Attributes attrs = constructAttrsFromUser(user);
@@ -342,18 +324,10 @@ public class SCIMServiceImpl implements SCIMService {
 
 	private SCIMUserQueryResponse getUsers(PaginationProperties pageProperties) {
 		SCIMUserQueryResponse response = new SCIMUserQueryResponse();
-		/**
-		* Below is an example to show how to deal with exceptional conditions while writing the connector.
-		* If you cannot complete the UserManagement operation on the on premises
-		* application because of any error/exception, you should throw the OnPremUserManagementException as shown below.
-		* <b>Note:</b> You can throw this exception from all the CRUD (Create/Retrieve/Update/Delete) operations defined on
-		* Users/Groups in the SCIM interface.
-		*/
 		if (userMap == null) {
 			//Note that the Error Code "o34567" is arbitrary - You can use any code that you want to.
 			throw new OnPremUserManagementException("o34567", "Cannot get the users. The userMap is null");
 		}
-
 		int totalResults = userMap.size();
 		if (pageProperties != null) {
 			//Set the start index to the response.
@@ -373,9 +347,7 @@ public class SCIMServiceImpl implements SCIMService {
 
 	private List<SCIMUser> getUserByFilter(SCIMFilter filter) {
 		List<SCIMUser> users = new ArrayList<SCIMUser>();
-
 		SCIMFilterType filterType = filter.getFilterType();
-
 		if (filterType.equals(SCIMFilterType.EQUALS)) {
 			//Example to show how to deal with an Equality filter
 			users = getUsersByEqualityFilter(filter);
@@ -431,7 +403,6 @@ public class SCIMServiceImpl implements SCIMService {
 		String value = filter.getFilterValue();
 		LOGGER.info("Equality Filter : Field Name [ " + fieldName + " ]. Value [ " + value + " ]");
 		List<SCIMUser> users = new ArrayList<SCIMUser>();
-
 		//A basic example of how to return users that match the criteria
 		for (Map.Entry<String, SCIMUser> entry : userMap.entrySet()) {
 			SCIMUser user = entry.getValue();
@@ -468,12 +439,6 @@ public class SCIMServiceImpl implements SCIMService {
 					}
 				}
 			} else if (filter.getFilterAttribute().getSchema().equalsIgnoreCase(userCustomUrn)) { //Check that the Schema name is the Custom Schema name to process the filter for custom fields
-				/**
-				 * The example below shows one of the two ways to get a custom property.<p>
-				 * The other way is to use the getter directly to get the value - user.getCustomStringProperty("urn:okta:onprem_app:1.0:user:custom", fieldName, null) will get the value
-				 * if the fieldName is a root element. If fieldName is a child of any other field, user.getCustomStringProperty("urn:okta:onprem_app:1.0:user:custom", fieldName, parentName)
-				 * will get the value.
-				 */
 				//"urn:okta:onprem_app:1.0:user:custom:departmentName eq "someValue""
 				Map<String, JsonNode> customPropertiesMap = user.getCustomPropertiesMap();
 				//Get the custom properties map (SchemaName -> JsonNode)
@@ -487,7 +452,6 @@ public class SCIMServiceImpl implements SCIMService {
 					userFound = true;
 				}
 			}
-
 			if (userFound) {
 				users.add(user);
 			}
@@ -510,32 +474,20 @@ public class SCIMServiceImpl implements SCIMService {
 		String displayName = group.getDisplayName();
 		LOGGER.debug("[createGroup] Creating group: " + group.getDisplayName());
 		boolean duplicate = false;
-		/**
-		 * Below is an example to show how to deal with exceptional conditions while writing the connector.
-		 * If you cannot complete the UserManagement operation on the on premises
-		 * application because of any error/exception, you should throw the OnPremUserManagementException as shown below
-		 * <b>Note:</b> You can throw this exception from all the CRUD (Create/Retrieve/Update/Delete) operations defined on
-		 * Users/Groups in the SCIM interface.
-		 */
 		if (groupMap == null) {
-			//Note that the Error Code "o23456" is arbitrary - You can use any code that you want to.
 			throw new OnPremUserManagementException("o23456", "Cannot create the group. The groupMap is null");
 		}
-
 		for (Map.Entry<String, SCIMGroup> entry : groupMap.entrySet()) {
 			//In this example, let us assume that a group is duplicate if the displayName is the same
 			if (entry.getValue().getDisplayName().equalsIgnoreCase(displayName)) {
 				duplicate = true;
 			}
 		}
-
 		if (duplicate) {
 			throw new DuplicateGroupException();
 		}
-
 		String id = generateNextId(GROUP_RESOURCE);
 		group.setId(id);
-
 		try {
 			LdapContext ctx = new InitialLdapContext(env, null);
 			Attributes attrs = constructAttrsFromGroup(group);
@@ -553,7 +505,6 @@ public class SCIMServiceImpl implements SCIMService {
 				LOGGER.error(errors.toString());
 			}
 		}
-
 		groupMap.put(group.getId(), group);
 		return group;
 	}
@@ -635,25 +586,16 @@ public class SCIMServiceImpl implements SCIMService {
 		return UserManagementCapabilities.values();
 	}
 
-	/**
-	 * Generate the next if for a resource
-	 *
-	 * @param resourceType
-	 * @return
-	 */
 	private String generateNextId(String resourceType) {
 		if (useFilePersistence) {
 			return UUID.randomUUID().toString();
 		}
-
 		if (resourceType.equals(USER_RESOURCE)) {
 			return Integer.toString(nextUserId++);
 		}
-
 		if (resourceType.equals(GROUP_RESOURCE)) {
 			return Integer.toString(nextGroupId++);
 		}
-
 		return null;
 	}
 
@@ -669,7 +611,7 @@ public class SCIMServiceImpl implements SCIMService {
 		for(int i = 0; i < keys.length; i++) {
 			String attrType = ldapUserCore.get(keys[i]);
 			attr = new BasicAttribute(attrType);
-			if(keys[i].equals("login")) {
+			if(keys[i].equals("userName")) {
 				value = user.getUserName();
 			} else if(keys[i].equals("familyName")) {
 				value = user.getName().getLastName();
@@ -730,15 +672,19 @@ public class SCIMServiceImpl implements SCIMService {
 	private Attributes constructCustomAttrsFromUser(SCIMUser user, Attributes attrs) {
 		String[] keys = ldapUserCustom.keySet().toArray(new String[ldapUserCustom.size()]);
 		String[] configLine;
-		String[] parentNames = new String[0];
+		String[] emptyArr = new String[0];
+		String[] parentNames = emptyArr;
 		Attribute customAttr;
 		Object value = "";
 		for(int i = 0; i < keys.length; i++) {
 			configLine = ldapUserCustom.get(keys[i]);
-			LOGGER.debug(Arrays.toString(configLine));
-			if(configLine.length < 3)
-				parentNames = Arrays.copyOfRange(configLine, 4, configLine.length);
+			parentNames = emptyArr;
+			//LOGGER.debug(Arrays.toString(configLine));
+			//LOGGER.debug(configLine.length);
+			if(configLine.length > 3)
+				parentNames = Arrays.copyOfRange(configLine, 3, configLine.length);
 			try {
+				//LOGGER.debug(Arrays.toString(parentNames));
 				customAttr = new BasicAttribute(keys[i]);
 				if(configLine[0].equals("int"))
 					value = user.getCustomIntValue(configLine[1], configLine[2], parentNames);
@@ -746,11 +692,14 @@ public class SCIMServiceImpl implements SCIMService {
 					value = user.getCustomBooleanValue(configLine[1], configLine[2], parentNames);
 				else if(configLine[0].equals("string"))
 					value = user.getCustomStringValue(configLine[1], configLine[2], parentNames);
+				else if(configLine[0].equals("double")){
+					value = user.getCustomDoubleValue(configLine[1], configLine[2], parentNames);
+				}
 				else
 					throw new OnPremUserManagementException("o12345", "Unexpected type for Custom attrs in config: " + Arrays.toString(configLine));
 				if(value != null) {
-					LOGGER.debug(value.toString());
 					customAttr.add(value.toString());
+					//LOGGER.debug(value.toString());
 					attrs.put(customAttr);
 				} else {
 					//throw new OnPremUserManagementException("o12345", "Custom Attr: " + Arrays.toString(configLine) + " was null for SCIMUser: " + user.getUserName());
@@ -776,7 +725,7 @@ public class SCIMServiceImpl implements SCIMService {
 			String givenName = attrs.get(givenNameLookup).get().toString();
 			String idLookup = ldapUserCore.get("id");
 			String id = attrs.get(idLookup).get().toString();
-			String uidLookup = ldapUserCore.get("login");
+			String uidLookup = ldapUserCore.get("userName");
 			String uid = attrs.get(uidLookup).get().toString();
 			String passwdLookup = ldapUserCore.get("password");
 			String passwd = "";
@@ -863,6 +812,7 @@ public class SCIMServiceImpl implements SCIMService {
 			Attribute gidNum = new BasicAttribute("gidNumber", "5000");
 			Attribute memAttr = attrs.get(ldapGroupCore.get("members"));
 			attrs.put(objclass);
+			attrs.put(gidNum);
 			if(group.getMembers() != null ) {
 				Object[] members = group.getMembers().toArray();
 				for(int i = 0; i < members.length; i++) {
