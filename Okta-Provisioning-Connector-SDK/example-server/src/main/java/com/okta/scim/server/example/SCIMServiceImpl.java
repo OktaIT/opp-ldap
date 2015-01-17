@@ -42,6 +42,8 @@ import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.Iterator;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import java.security.MessageDigest;
@@ -81,6 +83,8 @@ public class SCIMServiceImpl implements SCIMService {
 	private String ldapSecurityCredentials;
 	private String[] ldapUserClass;
 	private String[] ldapGroupClass;
+	private Map<String, String> ldapUserCore = new HashMap<String, String>();
+	private Map<String, String[]> ldapUserCustom = new HashMap<String, String[]>();
 	private String USER_RESOURCE = "user";
 	private String GROUP_RESOURCE = "group";
 	//Field names for the custom properties
@@ -119,23 +123,40 @@ public class SCIMServiceImpl implements SCIMService {
 
 	private void initLdapVars() {
 		Configuration config;
+		String[] userCoreMapHolder;
+		String[] userCustomMapHolder;
+		Iterator<String> userCustomIt;
+		Iterator<String> userCoreIt;
+		String customKey;
+		String coreKey;
 		try {
 			config = new PropertiesConfiguration(CONF_FILENAME);
-			ldapBaseDn = config.getString("Ldap.base_dn");
-			ldapGroupDn = config.getString("Ldap.group_dn");
-			ldapUserDn = config.getString("Ldap.user_dn");
-			ldapGroupPre = config.getString("Ldap.group_pre");
-			ldapUserPre = config.getString("Ldap.user_pre");
-			ldapUserFilter = config.getString("Ldap.user_filter");
-			ldapGroupFilter = config.getString("Ldap.group_filter");
-			ldapInitialContextFactory = config.getString("Ldap.initial_context_factory");
-			ldapUrl = config.getString("Ldap.url");
-			ldapSecurityAuthentication = config.getString("Ldap.security_authentication");
-			ldapSecurityPrincipal = config.getString("Ldap.security_principal");
-			ldapSecurityCredentials = config.getString("Ldap.security_credentials");
-			ldapUserClass = config.getStringArray("Ldap.user_class");
-			ldapGroupClass = config.getStringArray("Ldap.group_class");
-			LOGGER.debug(Arrays.toString(ldapUserClass));
+			ldapBaseDn = config.getString("ldap.baseDn");
+			ldapGroupDn = config.getString("ldap.groupDn");
+			ldapUserDn = config.getString("ldap.userDn");
+			ldapGroupPre = config.getString("ldap.groupPre");
+			ldapUserPre = config.getString("ldap.userPre");
+			ldapUserFilter = config.getString("ldap.userFilter");
+			ldapGroupFilter = config.getString("ldap.groupFilter");
+			ldapInitialContextFactory = config.getString("ldap.initialContextFactory");
+			ldapUrl = config.getString("ldap.url");
+			ldapSecurityAuthentication = config.getString("ldap.securityAuthentication");
+			ldapSecurityPrincipal = config.getString("ldap.securityPrincipal");
+			ldapSecurityCredentials = config.getString("ldap.securityCredentials");
+			ldapUserClass = config.getStringArray("ldap.userClass");
+			ldapGroupClass = config.getStringArray("ldap.groupClass");
+			userCustomIt = config.getKeys("OPP.userCustomMap");
+			userCoreIt = config.getKeys("OPP.userCoreMap");
+			while(userCustomIt.hasNext()) {
+				customKey = userCustomIt.next();
+				userCustomMapHolder = config.getStringArray(customKey);
+				ldapUserCustom.put(userCustomMapHolder[0].trim(), Arrays.copyOfRange(userCustomMapHolder, 1, userCustomMapHolder.length));
+			}
+			while(userCoreIt.hasNext()) {
+				coreKey = userCoreIt.next();
+				userCoreMapHolder = config.getStringArray(coreKey);
+				ldapUserCore.put(userCoreMapHolder[0].trim(), userCoreMapHolder[1].trim());
+			}
 		} catch (ConfigurationException e) {
 			StringWriter errors = new StringWriter();
 			e.printStackTrace(new PrintWriter(errors));
@@ -619,24 +640,50 @@ public class SCIMServiceImpl implements SCIMService {
 	}
 
 	private Attributes constructAttrsFromUser(SCIMUser user) {
+		String[] keys = ldapUserCore.keySet().toArray(new String[ldapUserCore.size()]);
 		String active = user.isActive() ? "active" : "inactive";
 		Attributes attrs = new BasicAttributes(true);
 		Attribute objclass = new BasicAttribute("objectClass");
-		objclass.add("OpenLDAPperson");
-		//objclass.add("posixAccount");
-		objclass.add("shadowAccount");
-		Attribute surname = new BasicAttribute("sn", user.getName().getLastName());
-		Attribute uid = new BasicAttribute("uid", user.getUserName());
-		Attribute passwd = new BasicAttribute("userPassword");
-		Attribute displayName = new BasicAttribute("displayName", user.getName().getFormattedName());
-		Attribute givenName = new BasicAttribute("givenName", user.getName().getFirstName());
-		Attribute description = new BasicAttribute("description", user.getId());
-		Attribute phoneNumsAttr = new BasicAttribute("telephoneNumber");
+		Object value;
+		Attribute attr;
+		for(int i = 0; i < ldapUserClass.length; i++) objclass.add(ldapUserClass[i]);
+		for(int i = 0; i < keys.length; i++) {
+			String attrType = ldapUserCore.get(keys[i]);
+			attr = new BasicAttribute(attrType);
+			if(keys[i].equals("login")) {
+				value = user.getUserName();
+			} else if(keys[i].equals("familyName")) {
+				value = user.getName().getLastName();
+			} else if(keys[i].equals("givenName")) {
+				value = user.getName().getFirstName();
+			} else if(keys[i].equals("formatted")) {
+				value = user.getName().getFormattedName();
+			} else if(keys[i].equals("id")) {
+				value = user.getId();
+			} else if(keys[i].equals("password") && (user.getPassword() != null)) {
+				attrs.put(attr);
+				continue;
+			} else if(keys[i].equals("phoneNumbers")) {
+				attrs.put(attr);
+				continue;
+			} else {
+				continue;
+			}
+			attr.add(value.toString());
+			attrs.put(attr);
+		}
+		//Attribute surname = new BasicAttribute("sn", user.getName().getLastName());
+		//Attribute uid = new BasicAttribute("uid", user.getUserName());
+		Attribute passwd = attrs.get("userPassword");
+		//Attribute displayName = new BasicAttribute("displayName", user.getName().getFormattedName());
+		//Attribute givenName = new BasicAttribute("givenName", user.getName().getFirstName());
+		//Attribute description = new BasicAttribute("description", user.getId());
+		Attribute phoneNumsAttr = attrs.get("telephoneNumber");
 		Attribute emailsAttr = new BasicAttribute("mail");
 		try{
 			if(user.getPassword() != null) {
 				passwd.add(hashPassword(user.getPassword()));
-				attrs.put(passwd);
+				//attrs.put(passwd);
 			}
 			if(user.getPhoneNumbers() != null) {
 				Object[] phoneNums = user.getPhoneNumbers().toArray();
@@ -659,14 +706,50 @@ public class SCIMServiceImpl implements SCIMService {
 			e.printStackTrace(new PrintWriter(errors));
 			LOGGER.error(errors.toString());
 		}
-
-		LOGGER.debug(passwd.toString());
 		attrs.put(objclass);
-		attrs.put(uid);
-		attrs.put(surname);
-		attrs.put(givenName);
-		attrs.put(description);
-		attrs.put(displayName);
+		//attrs.put(uid);
+		//attrs.put(surname);
+		//attrs.put(givenName);
+		//attrs.put(description);
+		//attrs.put(displayName);
+		return constructCustomAttrsFromUser(user, attrs);
+	}
+
+	private Attributes constructCustomAttrsFromUser(SCIMUser user, Attributes attrs) {
+		String[] keys = ldapUserCustom.keySet().toArray(new String[ldapUserCustom.size()]);
+		String[] configLine;
+		String[] parentNames = new String[0];
+		Attribute customAttr;
+		Object value = "";
+		LOGGER.debug(Arrays.toString(keys));
+		for(int i = 0; i < keys.length; i++) {
+			configLine = ldapUserCustom.get(keys[i]);
+			LOGGER.debug(Arrays.toString(configLine));
+			if(configLine.length < 3)
+				parentNames = Arrays.copyOfRange(configLine, 4, configLine.length);
+			try {
+				customAttr = new BasicAttribute(keys[i]);
+				if(configLine[0].equals("int"))
+					value = user.getCustomIntValue(configLine[1], configLine[2], parentNames);
+				else if(configLine[0].equals("boolean"))
+					value = user.getCustomBooleanValue(configLine[1], configLine[2], parentNames);
+				else if(configLine[0].equals("string"))
+					value = user.getCustomStringValue(configLine[1], configLine[2], parentNames);
+				else
+					throw new OnPremUserManagementException("o12345", "Unexpected type for Custom attrs in config: " + Arrays.toString(configLine));
+				if(value != null) {
+					LOGGER.debug(value.toString());
+					customAttr.add(value.toString());
+					attrs.put(customAttr);
+				} else {
+					//throw new OnPremUserManagementException("o12345", "Custom Attr: " + Arrays.toString(configLine) + " was null for SCIMUser: " + user.getUserName());
+				}
+			} catch (Exception e) {
+				StringWriter errors = new StringWriter();
+				e.printStackTrace(new PrintWriter(errors));
+				LOGGER.error(errors.toString());
+			}
+		}
 		return attrs;
 	}
 
@@ -677,7 +760,9 @@ public class SCIMServiceImpl implements SCIMService {
 			String sn = attrs.get("sn").get().toString();
 			String givenName = attrs.get("givenName").get().toString();
 			String uid = attrs.get("description").get().toString();
-			String passwd = new String((byte[])attrs.get("userPassword").get());
+			String passwd = "";
+			if(attrs.get("userPassword") != null)
+				passwd = new String((byte[])attrs.get("userPassword").get());
 			ArrayList<PhoneNumber> phoneNums = new ArrayList<PhoneNumber>();
 			ArrayList<Email> emails = new ArrayList<Email>();
 			Name fullName = new Name(formattedName, sn, givenName);
