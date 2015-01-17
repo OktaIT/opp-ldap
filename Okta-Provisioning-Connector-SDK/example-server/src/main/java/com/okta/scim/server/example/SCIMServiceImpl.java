@@ -85,6 +85,7 @@ public class SCIMServiceImpl implements SCIMService {
 	private String[] ldapGroupClass;
 	private Map<String, String> ldapUserCore = new HashMap<String, String>();
 	private Map<String, String[]> ldapUserCustom = new HashMap<String, String[]>();
+	private Map<String, String> ldapGroupCore = new HashMap<String, String>();
 	private String USER_RESOURCE = "user";
 	private String GROUP_RESOURCE = "group";
 	//Field names for the custom properties
@@ -125,10 +126,13 @@ public class SCIMServiceImpl implements SCIMService {
 		Configuration config;
 		String[] userCoreMapHolder;
 		String[] userCustomMapHolder;
+		String[] groupCoreMapHolder;
 		Iterator<String> userCustomIt;
 		Iterator<String> userCoreIt;
+		Iterator<String> groupCoreIt;
 		String customKey;
 		String coreKey;
+		String groupCoreKey;
 		try {
 			config = new PropertiesConfiguration(CONF_FILENAME);
 			ldapBaseDn = config.getString("ldap.baseDn");
@@ -147,6 +151,7 @@ public class SCIMServiceImpl implements SCIMService {
 			ldapGroupClass = config.getStringArray("ldap.groupClass");
 			userCustomIt = config.getKeys("OPP.userCustomMap");
 			userCoreIt = config.getKeys("OPP.userCoreMap");
+			groupCoreIt = config.getKeys("OPP.groupCoreMap");
 			while(userCustomIt.hasNext()) {
 				customKey = userCustomIt.next();
 				userCustomMapHolder = config.getStringArray(customKey);
@@ -157,6 +162,12 @@ public class SCIMServiceImpl implements SCIMService {
 				userCoreMapHolder = config.getStringArray(coreKey);
 				ldapUserCore.put(userCoreMapHolder[0].trim(), userCoreMapHolder[1].trim());
 			}
+			while(groupCoreIt.hasNext()) {
+				groupCoreKey = groupCoreIt.next();
+				groupCoreMapHolder = config.getStringArray(groupCoreKey);
+				ldapGroupCore.put(groupCoreMapHolder[0].trim(), groupCoreMapHolder[1].trim());
+			}
+			//TODO: fix catching general exceptions
 		} catch (ConfigurationException e) {
 			StringWriter errors = new StringWriter();
 			e.printStackTrace(new PrintWriter(errors));
@@ -181,6 +192,7 @@ public class SCIMServiceImpl implements SCIMService {
 			}
 			ctx.close();
 			namingEnum.close();
+			//TODO: fix catching general exceptions
 		} catch (Exception e) {
 			StringWriter errors = new StringWriter();
 			e.printStackTrace(new PrintWriter(errors));
@@ -205,6 +217,7 @@ public class SCIMServiceImpl implements SCIMService {
 			}
 			ctx.close();
 			namingEnum.close();
+			//TODO: fix catching general exceptions
 		} catch (Exception e) {
 			StringWriter errors = new StringWriter();
 			e.printStackTrace(new PrintWriter(errors));
@@ -255,6 +268,7 @@ public class SCIMServiceImpl implements SCIMService {
 			ctx.createSubcontext(dn, attrs);
 			ctx.close();
 			LOGGER.debug("[createUser] User " + user.getName().getFormattedName() + " successfully inserted into Directory Service.");
+			//TODO: fix catching general exceptions
 		} catch (Exception e) {
 			StringWriter errors = new StringWriter();
 			e.printStackTrace(new PrintWriter(errors));
@@ -291,6 +305,7 @@ public class SCIMServiceImpl implements SCIMService {
 					ctx.createSubcontext(dn, attrs);
 				}
 				ctx.close();
+			//TODO: fix catching general exceptions
 			} catch (Exception e) {
 				StringWriter errors = new StringWriter();
 				e.printStackTrace(new PrintWriter(errors));
@@ -527,6 +542,7 @@ public class SCIMServiceImpl implements SCIMService {
 			ctx.createSubcontext(ldapGroupPre + group.getDisplayName() + "," + ldapGroupDn + ldapBaseDn, attrs);
 			ctx.close();
 			LOGGER.debug("[createGroup] Group " + group.getDisplayName() + " successfully created.");
+			//TODO: fix catching general exceptions
 		} catch (Exception e) {
 			if(e instanceof InvalidAttributeValueException) {
 				LOGGER.error(((InvalidAttributeValueException) e).getExplanation());
@@ -554,6 +570,7 @@ public class SCIMServiceImpl implements SCIMService {
 				ctx.createSubcontext(ldapGroupPre + group.getDisplayName() + "," + ldapGroupDn + ldapBaseDn, attrs);
 				ctx.close();
 				LOGGER.debug("[updateGroup] Group " + group.getDisplayName() + " successfully re-created.");
+			//TODO: fix catching general exceptions
 			} catch (Exception e) {
 				StringWriter errors = new StringWriter();
 				e.printStackTrace(new PrintWriter(errors));
@@ -603,6 +620,7 @@ public class SCIMServiceImpl implements SCIMService {
 				LdapContext ctx = new InitialLdapContext(env, null);
 				ctx.destroySubcontext(ldapGroupPre + group.getDisplayName() + "," + ldapGroupDn + ldapBaseDn);
 				ctx.close();
+			//TODO: fix catching general exceptions
 			} catch (Exception e) {
 				StringWriter errors = new StringWriter();
 				e.printStackTrace(new PrintWriter(errors));
@@ -647,6 +665,7 @@ public class SCIMServiceImpl implements SCIMService {
 		Object value;
 		Attribute attr;
 		for(int i = 0; i < ldapUserClass.length; i++) objclass.add(ldapUserClass[i]);
+		//TODO: fix this, this is ugly
 		for(int i = 0; i < keys.length; i++) {
 			String attrType = ldapUserCore.get(keys[i]);
 			attr = new BasicAttribute(attrType);
@@ -663,7 +682,10 @@ public class SCIMServiceImpl implements SCIMService {
 			} else if(keys[i].equals("password") && (user.getPassword() != null)) {
 				attrs.put(attr);
 				continue;
-			} else if(keys[i].equals("phoneNumbers")) {
+			} else if(keys[i].equals("phoneNumbers") && (user.getPhoneNumbers() != null)) {
+				attrs.put(attr);
+				continue;
+			} else if(keys[i].equals("emails") && (user.getEmails() != null)) {
 				attrs.put(attr);
 				continue;
 			} else {
@@ -672,18 +694,12 @@ public class SCIMServiceImpl implements SCIMService {
 			attr.add(value.toString());
 			attrs.put(attr);
 		}
-		//Attribute surname = new BasicAttribute("sn", user.getName().getLastName());
-		//Attribute uid = new BasicAttribute("uid", user.getUserName());
-		Attribute passwd = attrs.get("userPassword");
-		//Attribute displayName = new BasicAttribute("displayName", user.getName().getFormattedName());
-		//Attribute givenName = new BasicAttribute("givenName", user.getName().getFirstName());
-		//Attribute description = new BasicAttribute("description", user.getId());
-		Attribute phoneNumsAttr = attrs.get("telephoneNumber");
-		Attribute emailsAttr = new BasicAttribute("mail");
+		Attribute passwd = attrs.get(ldapUserCore.get("password"));
+		Attribute phoneNumsAttr = attrs.get(ldapUserCore.get("phoneNumbers"));
+		Attribute emailsAttr = new BasicAttribute(ldapUserCore.get("emails"));
 		try{
 			if(user.getPassword() != null) {
 				passwd.add(hashPassword(user.getPassword()));
-				//attrs.put(passwd);
 			}
 			if(user.getPhoneNumbers() != null) {
 				Object[] phoneNums = user.getPhoneNumbers().toArray();
@@ -697,21 +713,17 @@ public class SCIMServiceImpl implements SCIMService {
 				Object[] emails = user.getEmails().toArray();
 				for(int i = 0; i < emails.length; i++) {
 					Email email = (Email) emails[i];//Yo,dawg I hurd you like emails...
-					emailsAttr.add(email.getValue() + "|" + email.getType() + "|" + email.isPrimary());
+					emailsAttr.add(email.getValue() + "|" + email.isPrimary() + "|" + email.getType());
 				}
 				attrs.put(emailsAttr);
 			}
+			//TODO: fix catching general exceptions
 		} catch (Exception e) {
 			StringWriter errors = new StringWriter();
 			e.printStackTrace(new PrintWriter(errors));
 			LOGGER.error(errors.toString());
 		}
 		attrs.put(objclass);
-		//attrs.put(uid);
-		//attrs.put(surname);
-		//attrs.put(givenName);
-		//attrs.put(description);
-		//attrs.put(displayName);
 		return constructCustomAttrsFromUser(user, attrs);
 	}
 
@@ -721,7 +733,6 @@ public class SCIMServiceImpl implements SCIMService {
 		String[] parentNames = new String[0];
 		Attribute customAttr;
 		Object value = "";
-		LOGGER.debug(Arrays.toString(keys));
 		for(int i = 0; i < keys.length; i++) {
 			configLine = ldapUserCustom.get(keys[i]);
 			LOGGER.debug(Arrays.toString(configLine));
@@ -744,6 +755,7 @@ public class SCIMServiceImpl implements SCIMService {
 				} else {
 					//throw new OnPremUserManagementException("o12345", "Custom Attr: " + Arrays.toString(configLine) + " was null for SCIMUser: " + user.getUserName());
 				}
+			//TODO: fix catching general exceptions
 			} catch (Exception e) {
 				StringWriter errors = new StringWriter();
 				e.printStackTrace(new PrintWriter(errors));
@@ -756,22 +768,31 @@ public class SCIMServiceImpl implements SCIMService {
 	private SCIMUser constructUserFromAttrs(Attributes attrs) {
 		SCIMUser user = new SCIMUser();
 		try {
-			String formattedName = attrs.get("displayName").get().toString();
-			String sn = attrs.get("sn").get().toString();
-			String givenName = attrs.get("givenName").get().toString();
-			String uid = attrs.get("description").get().toString();
+			String formattedNameLookup = ldapUserCore.get("formatted");
+			String formattedName = attrs.get(formattedNameLookup).get().toString();//displayName
+			String snLookup = ldapUserCore.get("familyName");
+			String sn = attrs.get(snLookup).get().toString();//sn
+			String givenNameLookup = ldapUserCore.get("givenName");
+			String givenName = attrs.get(givenNameLookup).get().toString();
+			String idLookup = ldapUserCore.get("id");
+			String id = attrs.get(idLookup).get().toString();
+			String uidLookup = ldapUserCore.get("login");
+			String uid = attrs.get(uidLookup).get().toString();
+			String passwdLookup = ldapUserCore.get("password");
 			String passwd = "";
 			if(attrs.get("userPassword") != null)
-				passwd = new String((byte[])attrs.get("userPassword").get());
+				passwd = new String((byte[])attrs.get(passwdLookup).get());
 			ArrayList<PhoneNumber> phoneNums = new ArrayList<PhoneNumber>();
 			ArrayList<Email> emails = new ArrayList<Email>();
 			Name fullName = new Name(formattedName, sn, givenName);
-			Attribute phoneNumsAttr = attrs.get("telephoneNumber");
-			Attribute emailsAttr = attrs.get("mail");
+			String phoneNumsAttrLookup = ldapUserCore.get("phoneNumbers");
+			Attribute phoneNumsAttr = attrs.get(phoneNumsAttrLookup);
+			String emailsAttrLookup = ldapUserCore.get("emails");
+			Attribute emailsAttr = attrs.get(emailsAttrLookup);
 
 			user.setName(fullName);
-			user.setUserName(attrs.get("uid").get().toString());
-			user.setId(uid);
+			user.setUserName(uid);
+			user.setId(id);
 			user.setActive(true);
 			user.setPassword(passwd);
 
@@ -795,7 +816,7 @@ public class SCIMServiceImpl implements SCIMService {
 					String email = emailsAttr.get(i).toString();
 					String[] emailParts = splitString(email, "|");
 					if(emailParts.length > 2) {
-						Email emailEntry = new Email(emailParts[0], emailParts[1], Boolean.parseBoolean(emailParts[2]));
+						Email emailEntry = new Email(emailParts[0], emailParts[2], Boolean.parseBoolean(emailParts[1]));
 						emails.add(emailEntry);
 					}
 					else {
@@ -805,6 +826,7 @@ public class SCIMServiceImpl implements SCIMService {
 				user.setEmails(emails);
 			}
 			return user;
+			//TODO: fix catching general exceptions
 		} catch (Exception e) {
 			StringWriter errors = new StringWriter();
 			e.printStackTrace(new PrintWriter(errors));
@@ -817,27 +839,38 @@ public class SCIMServiceImpl implements SCIMService {
 	//Okta will remember the id of the group.
 	private Attributes constructAttrsFromGroup(SCIMGroup group) {
 		Attributes attrs = new BasicAttributes(true);
+		String[] keys = ldapGroupCore.keySet().toArray(new String[ldapGroupCore.size()]);
+		Attribute attr;
+		Object value;
 		LOGGER.info("[constructAttrsFromGroup] constructing Attrs from group");
 		try {
 			Attribute objclass = new BasicAttribute("objectClass");
-			objclass.add("posixGroup");
-			Attribute description = new BasicAttribute("description", group.getId());
+			for(int i = 0; i < ldapGroupClass.length; i++) objclass.add(ldapGroupClass[i]);
+			for(int i = 0; i < keys.length; i++) {
+				String attrType = ldapGroupCore.get(keys[i]);
+				attr = new BasicAttribute(attrType);
+				if(keys[i].equals("id")) {
+					value = group.getId();
+				} else if(keys[i].equals("members") && (group.getMembers() != null)) {
+					attrs.put(attr);
+					continue;
+				} else {
+					continue;
+				}
+				attr.add(value.toString());
+				attrs.put(attr);
+			}
 			Attribute gidNum = new BasicAttribute("gidNumber", "5000");
-			Attribute memAttr = new BasicAttribute("memberUid");
-			//ArrayList<Attribute> membersAttr = new ArrayList<Attribute>();
+			Attribute memAttr = attrs.get(ldapGroupCore.get("members"));
 			attrs.put(objclass);
-			attrs.put(description);
-			attrs.put(gidNum);
-
 			if(group.getMembers() != null ) {
 				Object[] members = group.getMembers().toArray();
 				for(int i = 0; i < members.length; i++) {
 					Membership mem = (Membership) members[i];
 					memAttr.add(mem.getId()+ "|"+ mem.getDisplayName());
 				}
-				//attrs.put(membersAttr);
-				attrs.put(memAttr);
 			}
+			//TODO: fix catching general exceptions
 		} catch (Exception e) {
 			StringWriter errors = new StringWriter();
 			e.printStackTrace(new PrintWriter(errors));
@@ -851,11 +884,12 @@ public class SCIMServiceImpl implements SCIMService {
 		try {
 			String cn = attrs.get("cn").get().toString();
 			ArrayList<Membership> memberList = new ArrayList<Membership>();
-			Attribute memberAttr = attrs.get("memberUid");
-			String id = attrs.get("description").get().toString();
+			String memberAttrLookup = ldapGroupCore.get("members");
+			Attribute memberAttr = attrs.get(memberAttrLookup);
+			String idLookup = ldapGroupCore.get("id");
+			String id = attrs.get(idLookup).get().toString();
 			group.setDisplayName(cn);
 			group.setId(id);
-
 			if(memberAttr != null) {
 				for(int i = 0; i < memberAttr.size(); i++) {
 					String memberUid = (String) memberAttr.get(i).toString();
@@ -870,6 +904,7 @@ public class SCIMServiceImpl implements SCIMService {
 				}
 				group.setMembers(memberList);
 			}
+			//TODO: fix catching general exceptions
 		} catch (Exception e) {
 			StringWriter errors = new StringWriter();
 			e.printStackTrace(new PrintWriter(errors));
