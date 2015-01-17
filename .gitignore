@@ -12,3 +12,5 @@
 hs_err_pid*
 
 Okta-Provisioning-Connector-SDK/example-server/target/
+*.swp
+*.bak
