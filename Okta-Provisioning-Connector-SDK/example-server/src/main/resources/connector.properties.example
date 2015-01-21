@@ -25,15 +25,15 @@ OPP.userCustomMap.homeDir=homeDirectory, string , urn:okta:example_onpremapp_1:1
 OPP.userCustomMap.test= personalTitle,double,urn:okta:example_onpremapp_1:1.0:user:custom,number,test,test,test
 
 # connector will parse as Okta attr, ldap attr
-OPP.userCoreMap.login			=	userName,		uid
-OPP.userCoreMap.familyName		=	familyName,		sn
-OPP.userCoreMap.givenName		=	givenName,		givenName
-OPP.userCoreMap.formattedName	=	formatted,		displayName
-OPP.userCoreMap.id				=	id,				description
-OPP.userCoreMap.password		=	password,		userPassword
-OPP.userCoreMap.phoneNumbers	=	phoneNumbers,	telephoneNumber
-OPP.userCoreMap.emails			=	emails,			mail
+OPP.userCoreMap.login = userName, uid
+OPP.userCoreMap.familyName = familyName, sn
+OPP.userCoreMap.givenName = givenName, givenName
+OPP.userCoreMap.formattedName = formatted, displayName
+OPP.userCoreMap.id = id, description
+OPP.userCoreMap.password = password, userPassword
+OPP.userCoreMap.phoneNumbers = phoneNumbers, telephoneNumber
+OPP.userCoreMap.emails = emails, mail
 
 # connector will parse as Okta attr, ldap attr
-OPP.groupCoreMap.members		=	members,		memberUid
-OPP.groupCoreMap.id				=	id,				description
+OPP.groupCoreMap.members = members, memberUid
+OPP.groupCoreMap.id = id, description
