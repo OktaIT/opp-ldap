@@ -681,8 +681,7 @@ public class SCIMServiceImpl implements SCIMService {
 			parentNames = emptyArr;
 			//LOGGER.debug(Arrays.toString(configLine));
 			//LOGGER.debug(configLine.length);
-			if(configLine.length > 3)
-				parentNames = Arrays.copyOfRange(configLine, 3, configLine.length);
+			if(configLine.length > 3) parentNames = Arrays.copyOfRange(configLine, 3, configLine.length);
 			try {
 				//LOGGER.debug(Arrays.toString(parentNames));
 				customAttr = new BasicAttribute(keys[i]);
@@ -692,9 +691,8 @@ public class SCIMServiceImpl implements SCIMService {
 					value = user.getCustomBooleanValue(configLine[1], configLine[2], parentNames);
 				else if(configLine[0].equals("string"))
 					value = user.getCustomStringValue(configLine[1], configLine[2], parentNames);
-				else if(configLine[0].equals("double")){
+				else if(configLine[0].equals("double"))
 					value = user.getCustomDoubleValue(configLine[1], configLine[2], parentNames);
-				}
 				else
 					throw new OnPremUserManagementException("o12345", "Unexpected type for Custom attrs in config: " + Arrays.toString(configLine));
 				if(value != null) {
@@ -712,6 +710,48 @@ public class SCIMServiceImpl implements SCIMService {
 			}
 		}
 		return attrs;
+	}
+
+	private SCIMUser constructUserFromCustomAttrs(SCIMUser user, Attributes attrs) {
+		String[] keys = ldapUserCustom.keySet().toArray(new String[ldapUserCustom.size()]);
+		String[] configLine;
+		String[] emptyArr = new String[0];
+		String[] parentNames = emptyArr;
+		Attribute customAttr;
+		Object value = "";
+		for(int i = 0; i < keys.length; i++) {
+			configLine = ldapUserCustom.get(keys[i]);
+			parentNames = emptyArr;
+			LOGGER.debug(Arrays.toString(configLine));
+			if(configLine.length > 3) parentNames = Arrays.copyOfRange(configLine, 3, configLine.length);
+			try {
+				customAttr = attrs.get(keys[i]);
+				value = customAttr.get();
+				LOGGER.debug(value);
+				//TODO: make this better
+				if(configLine[0].equals("int")) {
+					user.setCustomIntValue(configLine[1], configLine[2], Integer.parseInt(value.toString()), parentNames);
+				}
+				else if(configLine[0].equals("boolean")) {
+					user.setCustomBooleanValue(configLine[1], configLine[2], Boolean.valueOf(value.toString()), parentNames);
+				}
+				else if(configLine[0].equals("string")) {
+					user.setCustomStringValue(configLine[1], configLine[2], (String) value, parentNames);
+				}
+				else if(configLine[0].equals("double")) {
+					user.setCustomDoubleValue(configLine[1], configLine[2], Double.parseDouble(value.toString()), parentNames);
+				}
+				else {
+					throw new OnPremUserManagementException("o12345", "Unexpected type for Custom attrs in config: " + Arrays.toString(configLine));
+				}
+			//TODO: fix catching general exceptions
+			} catch (Exception e) {
+				StringWriter errors = new StringWriter();
+				e.printStackTrace(new PrintWriter(errors));
+				LOGGER.error(errors.toString());
+			}
+		}
+		return user;
 	}
 
 	private SCIMUser constructUserFromAttrs(Attributes attrs) {
@@ -774,14 +814,13 @@ public class SCIMServiceImpl implements SCIMService {
 				}
 				user.setEmails(emails);
 			}
-			return user;
 			//TODO: fix catching general exceptions
 		} catch (Exception e) {
 			StringWriter errors = new StringWriter();
 			e.printStackTrace(new PrintWriter(errors));
 			LOGGER.error(errors.toString());
 		}
-		return user;
+		return constructUserFromCustomAttrs(user, attrs);
 	}
 
 	//NOTE: if you don't select the delete in app option when deleting a pushed group

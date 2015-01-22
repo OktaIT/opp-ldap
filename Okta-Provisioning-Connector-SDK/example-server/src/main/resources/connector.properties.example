@@ -16,7 +16,7 @@ ldap.userClass=OpenLDAPperson,shadowAccount, posixAccount
 ldap.groupClass=posixGroup
 
 # connector will parse each line as Ldap attrt, value type, schema name, field name
-# try not to use extraneous whitespaces here.
+# whitespace shouldn't matter here
 OPP.userCustomMap.primaryPhone=mobileTelephoneNumber,string,urn:okta:example_onpremapp_1:1.0:user:custom,primaryPhone
 OPP.userCustomMap.qweqweqwe=uidNumber,int,urn:okta:example_onpremapp_1:1.0:user:custom,qweqweqe
 OPP.userCustomMap.int=gidNumber,int,urn:okta:example_onpremapp_1:1.0:user:custom,int
