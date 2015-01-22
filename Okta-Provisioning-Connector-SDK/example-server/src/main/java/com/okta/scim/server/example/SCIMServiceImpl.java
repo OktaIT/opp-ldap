@@ -11,6 +11,7 @@ import com.okta.scim.util.model.Membership;
 import com.okta.scim.util.model.Name;
 import com.okta.scim.util.model.PaginationProperties;
 import com.okta.scim.util.model.SCIMFilter;
+import com.okta.scim.util.model.SCIMFilterAttribute;
 import com.okta.scim.util.model.SCIMFilterType;
 import com.okta.scim.util.model.SCIMGroup;
 import com.okta.scim.util.model.SCIMGroupQueryResponse;
@@ -21,6 +22,8 @@ import com.okta.scim.util.model.PhoneNumber;
 import org.apache.log4j.Logger;
 import org.codehaus.jackson.JsonNode;
 import org.springframework.util.StringUtils;
+import org.springframework.ldap.core.DistinguishedName;
+import org.springframework.ldap.core.LdapRdn;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.configuration.Configuration;
@@ -58,6 +61,7 @@ import javax.naming.NamingEnumeration;
 import javax.naming.Context;
 import javax.naming.ldap.LdapContext;
 import javax.naming.ldap.LdapName;
+import javax.naming.ldap.Rdn;
 import javax.naming.ldap.InitialLdapContext;
 import javax.naming.NamingException;
 import javax.annotation.PostConstruct;
@@ -256,6 +260,7 @@ public class SCIMServiceImpl implements SCIMService {
 			String dn = ldapUserPre + user.getUserName() + "," + ldapUserDn + ldapBaseDn;
 			ctx.createSubcontext(dn, attrs);
 			ctx.close();
+			userMap.put(user.getId(), user);
 			LOGGER.debug("[createUser] User " + user.getName().getFormattedName() + " successfully inserted into Directory Service.");
 			//TODO: fix catching general exceptions
 		} catch (Exception e) {
@@ -263,7 +268,6 @@ public class SCIMServiceImpl implements SCIMService {
 			e.printStackTrace(new PrintWriter(errors));
 			LOGGER.error(errors.toString());
 		}
-		userMap.put(user.getId(), user);
 		return user;
 	}
 
@@ -530,7 +534,22 @@ public class SCIMServiceImpl implements SCIMService {
 			groupMap.put(id, group);
 			return group;
 		} else {
-			throw new EntityNotFoundException();
+			LOGGER.debug("[updateGroup] Group " + id + " not found, trying to add group.");
+			try {
+				LdapContext ctx = new InitialLdapContext(env, null);
+				Attributes attrs = constructAttrsFromGroup(group);
+				ctx.createSubcontext(ldapGroupPre + group.getDisplayName() + "," + ldapGroupDn + ldapBaseDn, attrs);
+				ctx.close();
+				LOGGER.debug("[updateGroup] Group " + group.getDisplayName() + " successfully re-created.");
+			//TODO: fix catching general exceptions
+			} catch (Exception e) {
+				StringWriter errors = new StringWriter();
+				e.printStackTrace(new PrintWriter(errors));
+				LOGGER.error(errors.toString());
+			}
+			groupMap.put(id, group);
+			return group;
+			//throw new EntityNotFoundException();
 		}
 	}
 
@@ -578,6 +597,7 @@ public class SCIMServiceImpl implements SCIMService {
 				LOGGER.error(errors.toString());
 			}
 		} else {
+			LOGGER.debug("[deleteGroup] Group: " + id + " not found, throwing exception.");
 			throw new EntityNotFoundException();
 		}
 	}
@@ -722,28 +742,26 @@ public class SCIMServiceImpl implements SCIMService {
 		for(int i = 0; i < keys.length; i++) {
 			configLine = ldapUserCustom.get(keys[i]);
 			parentNames = emptyArr;
-			LOGGER.debug(Arrays.toString(configLine));
+			//LOGGER.debug(Arrays.toString(configLine));
 			if(configLine.length > 3) parentNames = Arrays.copyOfRange(configLine, 3, configLine.length);
 			try {
 				customAttr = attrs.get(keys[i]);
 				value = customAttr.get();
-				LOGGER.debug(value);
+				//LOGGER.debug(value);
 				//TODO: make this better
-				if(configLine[0].equals("int")) {
+				if(configLine[0].equals("int"))
 					user.setCustomIntValue(configLine[1], configLine[2], Integer.parseInt(value.toString()), parentNames);
-				}
-				else if(configLine[0].equals("boolean")) {
+				else if(configLine[0].equals("boolean"))
 					user.setCustomBooleanValue(configLine[1], configLine[2], Boolean.valueOf(value.toString()), parentNames);
-				}
-				else if(configLine[0].equals("string")) {
+				else if(configLine[0].equals("string"))
 					user.setCustomStringValue(configLine[1], configLine[2], (String) value, parentNames);
-				}
-				else if(configLine[0].equals("double")) {
+				else if(configLine[0].equals("double"))
 					user.setCustomDoubleValue(configLine[1], configLine[2], Double.parseDouble(value.toString()), parentNames);
-				}
-				else {
+				else
 					throw new OnPremUserManagementException("o12345", "Unexpected type for Custom attrs in config: " + Arrays.toString(configLine));
-				}
+				String[] test = {"test","test","test"};
+				user.setCustomStringValue("urn:okta:khe_onpremapp_1:1.0:user:custom","testParent","qwertyuiop",test);
+				LOGGER.debug(user.getCustomStringValue("urn:okta:khe_onpremapp_1:1.0:user:custom","testParent",test));
 			//TODO: fix catching general exceptions
 			} catch (Exception e) {
 				StringWriter errors = new StringWriter();
@@ -778,6 +796,8 @@ public class SCIMServiceImpl implements SCIMService {
 			Attribute phoneNumsAttr = attrs.get(phoneNumsAttrLookup);
 			String emailsAttrLookup = ldapUserCore.get("emails");
 			Attribute emailsAttr = attrs.get(emailsAttrLookup);
+			//LOGGER.debug(attrs);
+			//LOGGER.debug(attrs.get("dn").getClass().getName());
 
 			user.setName(fullName);
 			user.setUserName(uid);
@@ -842,21 +862,28 @@ public class SCIMServiceImpl implements SCIMService {
 				} else if(keys[i].equals("members") && (group.getMembers() != null)) {
 					attrs.put(attr);
 					continue;
+				} else if(keys[i].equals("testMembers") && (group.getMembers() != null)) {
+					attrs.put(attr);
+					continue;
 				} else {
 					continue;
 				}
 				attr.add(value.toString());
 				attrs.put(attr);
 			}
-			Attribute gidNum = new BasicAttribute("gidNumber", "5000");
-			Attribute memAttr = attrs.get(ldapGroupCore.get("members"));
+			//Attribute gidNum = new BasicAttribute("gidNumber", "5000");
+			//Attribute memAttr = attrs.get(ldapGroupCore.get("members"));
+			Attribute member = attrs.get(ldapGroupCore.get("testMembers"));
 			attrs.put(objclass);
-			attrs.put(gidNum);
+			//attrs.put(gidNum);
 			if(group.getMembers() != null ) {
 				Object[] members = group.getMembers().toArray();
 				for(int i = 0; i < members.length; i++) {
 					Membership mem = (Membership) members[i];
-					memAttr.add(mem.getId()+ "|"+ mem.getDisplayName());
+					String name = ldapUserPre + mem.getDisplayName() + "," + ldapUserDn + ldapBaseDn;
+					DistinguishedName dn = new DistinguishedName(name);
+					//memAttr.add(mem.getId()+ "|"+ mem.getDisplayName());
+					member.add(dn.encode());
 				}
 			}
 			//TODO: fix catching general exceptions
@@ -869,11 +896,18 @@ public class SCIMServiceImpl implements SCIMService {
 	}
 
 	private SCIMGroup constructGroupFromAttrs(Attributes attrs) {
+		List<SCIMUser> result;
 		SCIMGroup group = new SCIMGroup();
+		SCIMFilter filter = new SCIMFilter();
+		SCIMFilterAttribute filterAttr = new SCIMFilterAttribute();
+		SCIMFilterType filterType = SCIMFilterType.EQUALS;
+		filter.setFilterType(filterType);
+		filterAttr.setAttributeName("userName");
+		filter.setFilterAttribute(filterAttr);
 		try {
 			String cn = attrs.get("cn").get().toString();
 			ArrayList<Membership> memberList = new ArrayList<Membership>();
-			String memberAttrLookup = ldapGroupCore.get("members");
+			String memberAttrLookup = ldapGroupCore.get("testMembers");
 			Attribute memberAttr = attrs.get(memberAttrLookup);
 			String idLookup = ldapGroupCore.get("id");
 			String id = attrs.get(idLookup).get().toString();
@@ -881,14 +915,15 @@ public class SCIMServiceImpl implements SCIMService {
 			group.setId(id);
 			if(memberAttr != null) {
 				for(int i = 0; i < memberAttr.size(); i++) {
-					String memberUid = (String) memberAttr.get(i).toString();
-					String[] memberParts = splitString(memberUid, "|");
-					if(memberParts.length > 1) {
-						Membership memHolder = new Membership(memberParts[0], memberParts[1]);
+					String memberDn = memberAttr.get(i).toString();
+					DistinguishedName dn = new DistinguishedName(memberDn);
+					LdapRdn memberCn = dn.getLdapRdn("cn");
+					filter.setFilterValue(memberCn.getValue());
+					result = getUsersByEqualityFilter(filter);
+					if(result.size() == 1) {
+						SCIMUser resultUser = result.get(0);
+						Membership memHolder = new Membership(resultUser.getId(), memberCn.getValue());
 						memberList.add(memHolder);
-					}
-					else {
-						LOGGER.error("[constructGroupFromAttrs] String: " + memberUid + "was ill formatted, expected 3 segments.");
 					}
 				}
 				group.setMembers(memberList);
