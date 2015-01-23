@@ -171,7 +171,6 @@ public class SCIMServiceImpl implements SCIMService {
 				groupCoreMapHolder = config.getStringArray(groupCoreKey);
 				ldapGroupCore.put(groupCoreMapHolder[0].trim(), groupCoreMapHolder[1].trim());
 			}
-			//TODO: fix catching general exceptions
 		} catch (ConfigurationException e) {
 			StringWriter errors = new StringWriter();
 			e.printStackTrace(new PrintWriter(errors));
@@ -759,9 +758,6 @@ public class SCIMServiceImpl implements SCIMService {
 					user.setCustomDoubleValue(configLine[1], configLine[2], Double.parseDouble(value.toString()), parentNames);
 				else
 					throw new OnPremUserManagementException("o12345", "Unexpected type for Custom attrs in config: " + Arrays.toString(configLine));
-				String[] test = {"test","test","test"};
-				user.setCustomStringValue("urn:okta:khe_onpremapp_1:1.0:user:custom","testParent","qwertyuiop",test);
-				LOGGER.debug(user.getCustomStringValue("urn:okta:khe_onpremapp_1:1.0:user:custom","testParent",test));
 			//TODO: fix catching general exceptions
 			} catch (Exception e) {
 				StringWriter errors = new StringWriter();
