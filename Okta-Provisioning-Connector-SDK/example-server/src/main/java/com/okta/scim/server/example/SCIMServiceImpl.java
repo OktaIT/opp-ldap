@@ -4,6 +4,7 @@ import com.okta.scim.server.capabilities.UserManagementCapabilities;
 import com.okta.scim.server.exception.DuplicateGroupException;
 import com.okta.scim.server.exception.EntityNotFoundException;
 import com.okta.scim.server.exception.OnPremUserManagementException;
+import com.okta.scim.util.exception.InvalidDataTypeException;
 import com.okta.scim.server.service.SCIMOktaConstants;
 import com.okta.scim.server.service.SCIMService;
 import com.okta.scim.util.model.Email;
@@ -731,43 +732,6 @@ public class SCIMServiceImpl implements SCIMService {
 		return attrs;
 	}
 
-	private SCIMUser constructUserFromCustomAttrs(SCIMUser user, Attributes attrs) {
-		String[] keys = ldapUserCustom.keySet().toArray(new String[ldapUserCustom.size()]);
-		String[] configLine;
-		String[] emptyArr = new String[0];
-		String[] parentNames = emptyArr;
-		Attribute customAttr;
-		Object value = "";
-		for(int i = 0; i < keys.length; i++) {
-			configLine = ldapUserCustom.get(keys[i]);
-			parentNames = emptyArr;
-			//LOGGER.debug(Arrays.toString(configLine));
-			if(configLine.length > 3) parentNames = Arrays.copyOfRange(configLine, 3, configLine.length);
-			try {
-				customAttr = attrs.get(keys[i]);
-				value = customAttr.get();
-				//LOGGER.debug(value);
-				//TODO: make this better
-				if(configLine[0].equals("int"))
-					user.setCustomIntValue(configLine[1], configLine[2], Integer.parseInt(value.toString()), parentNames);
-				else if(configLine[0].equals("boolean"))
-					user.setCustomBooleanValue(configLine[1], configLine[2], Boolean.valueOf(value.toString()), parentNames);
-				else if(configLine[0].equals("string"))
-					user.setCustomStringValue(configLine[1], configLine[2], (String) value, parentNames);
-				else if(configLine[0].equals("double"))
-					user.setCustomDoubleValue(configLine[1], configLine[2], Double.parseDouble(value.toString()), parentNames);
-				else
-					throw new OnPremUserManagementException("o12345", "Unexpected type for Custom attrs in config: " + Arrays.toString(configLine));
-			//TODO: fix catching general exceptions
-			} catch (Exception e) {
-				StringWriter errors = new StringWriter();
-				e.printStackTrace(new PrintWriter(errors));
-				LOGGER.error(errors.toString());
-			}
-		}
-		return user;
-	}
-
 	private SCIMUser constructUserFromAttrs(Attributes attrs) {
 		SCIMUser user = new SCIMUser();
 		try {
@@ -837,6 +801,43 @@ public class SCIMServiceImpl implements SCIMService {
 			LOGGER.error(errors.toString());
 		}
 		return constructUserFromCustomAttrs(user, attrs);
+	}
+
+	private SCIMUser constructUserFromCustomAttrs(SCIMUser user, Attributes attrs) {
+		String[] keys = ldapUserCustom.keySet().toArray(new String[ldapUserCustom.size()]);
+		String[] configLine;
+		String[] emptyArr = new String[0];
+		String[] parentNames = emptyArr;
+		Attribute customAttr;
+		Object value = "";
+		for(int i = 0; i < keys.length; i++) {
+			configLine = ldapUserCustom.get(keys[i]);
+			parentNames = emptyArr;
+			//LOGGER.debug(Arrays.toString(configLine));
+			if(configLine.length > 3) parentNames = Arrays.copyOfRange(configLine, 3, configLine.length);
+			try {
+				customAttr = attrs.get(keys[i]);
+				value = customAttr.get();
+				//LOGGER.debug(value);
+				//TODO: make this better
+				if(configLine[0].equals("int"))
+					user.setCustomIntValue(configLine[1], configLine[2], Integer.parseInt(value.toString()), parentNames);
+				else if(configLine[0].equals("boolean"))
+					user.setCustomBooleanValue(configLine[1], configLine[2], Boolean.valueOf(value.toString()), parentNames);
+				else if(configLine[0].equals("string"))
+					user.setCustomStringValue(configLine[1], configLine[2], (String) value, parentNames);
+				else if(configLine[0].equals("double"))
+					user.setCustomDoubleValue(configLine[1], configLine[2], Double.parseDouble(value.toString()), parentNames);
+				else
+					throw new OnPremUserManagementException("o12345", "Unexpected type for Custom attrs in config: " + Arrays.toString(configLine));
+			//TODO: fix catching general exceptions
+			} catch (NamingException e) {
+				StringWriter errors = new StringWriter();
+				e.printStackTrace(new PrintWriter(errors));
+				LOGGER.error(errors.toString());
+			}
+		}
+		return user;
 	}
 
 	//NOTE: if you don't select the delete in app option when deleting a pushed group
