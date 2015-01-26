@@ -728,10 +728,10 @@ public class SCIMServiceImpl implements SCIMService {
 			String id = attrs.get(idLookup).get().toString();
 			String uidLookup = ldapUserCore.get("userName");
 			String uid = attrs.get(uidLookup).get().toString();
-			String passwdLookup = ldapUserCore.get("password");
-			String passwd = "";
-			if(attrs.get("userPassword") != null)
-				passwd = new String((byte[])attrs.get(passwdLookup).get());
+//			String passwdLookup = ldapUserCore.get("password");
+//			String passwd = "";
+//			if(attrs.get("userPassword") != null)
+//				passwd = new String((byte[])attrs.get(passwdLookup).get());
 			ArrayList<PhoneNumber> phoneNums = new ArrayList<PhoneNumber>();
 			ArrayList<Email> emails = new ArrayList<Email>();
 			Name fullName = new Name(formattedName, sn, givenName);
@@ -744,7 +744,7 @@ public class SCIMServiceImpl implements SCIMService {
 			user.setUserName(uid);
 			user.setId(id);
 			user.setActive(true);
-			user.setPassword(passwd);
+//			user.setPassword(passwd);
 			if(phoneNumsAttr != null) {
 				for(int i = 0; i < phoneNumsAttr.size(); i++) {
 					String phoneNum = phoneNumsAttr.get(i).toString();
