@@ -287,7 +287,7 @@ public class SCIMServiceImpl implements SCIMService {
 	public SCIMUser createUser(SCIMUser user) throws OnPremUserManagementException {
 		String id = generateNextId(USER_RESOURCE);
 		user.setId(id);
-		LOGGER.debug("[createUser] Creating User: " + user.getName().getFormattedName());
+		LOGGER.info("[createUser] Creating User: " + user.getName().getFormattedName());
 		if (userMap == null) {
 		throw new OnPremUserManagementException("o01234", "Cannot create the user. The userMap is null", "http://some-help-url", null);
 		}
@@ -336,19 +336,23 @@ public class SCIMServiceImpl implements SCIMService {
 				LdapContext ctx = new InitialLdapContext(env, null);
 				String dn = ldapUserPre + user.getUserName() + "," + ldapUserDn + ldapBaseDn;
 				ctx.destroySubcontext(dn);
-				ctx.close();
+
 				LOGGER.info("[updateUser] User " + user.getName().getFormattedName() + " successfully deleted from Directory Service.");
 				if(user.isActive()) {
-					this.createUser(user);
+					LOGGER.info("[updateUser] User is still active, re-adding user.");
+					Attributes attrs = constructAttrsFromUser(user);
+					ctx.createSubcontext(dn, attrs);
+					//this.createUser(user);
 				}
-			} catch (NamingException e) {
+				ctx.close();
+			} catch (InvalidDataTypeException | NamingException e) {
 				handleGeneralException(e);
 				throw new OnPremUserManagementException("o01234", e.getMessage(), e);
 			}
 		} else {
 			LOGGER.warn("[updateUser] User " + user.getName().getFormattedName() + " not found, if user is still active, re-adding.");
 			if(user.isActive()) {
-				return this.createUser(user);
+				this.createUser(user);
 			}
 		}
 		return user;
@@ -621,7 +625,7 @@ public class SCIMServiceImpl implements SCIMService {
 			Attributes attrs = constructAttrsFromGroup(group);
 			ctx.createSubcontext(ldapGroupPre + group.getDisplayName() + "," + ldapGroupDn + ldapBaseDn, attrs);
 			ctx.close();
-			LOGGER.debug("[createGroup] Group " + group.getDisplayName() + " successfully created.");
+			LOGGER.info("[createGroup] Group " + group.getDisplayName() + " successfully created.");
 		} catch (NamingException e) {
 			handleGeneralException(e);
 			throw new OnPremUserManagementException("o01234", e.getMessage(), e);
@@ -649,11 +653,10 @@ public class SCIMServiceImpl implements SCIMService {
 				LdapContext ctx = new InitialLdapContext(env, null);
 				Attributes attrs = constructAttrsFromGroup(group);
 				ctx.destroySubcontext(ldapGroupPre + existingGroup.getDisplayName() + "," + ldapGroupDn + ldapBaseDn);
-				LOGGER.debug("[updateGroup] Group " + group.getDisplayName() + " successfully removed.");
+				LOGGER.info("[updateGroup] Group " + group.getDisplayName() + " successfully removed.");
 				ctx.createSubcontext(ldapGroupPre + group.getDisplayName() + "," + ldapGroupDn + ldapBaseDn, attrs);
 				ctx.close();
-				LOGGER.debug("[updateGroup] Group " + group.getDisplayName() + " successfully re-created.");
-				//TODO: fix catching general exceptions
+				LOGGER.info("[updateGroup] Group " + group.getDisplayName() + " successfully re-created.");
 				groupMap.put(id, group);
 				return group;
 			} else {
@@ -662,7 +665,7 @@ public class SCIMServiceImpl implements SCIMService {
 				Attributes attrs = constructAttrsFromGroup(group);
 				ctx.createSubcontext(ldapGroupPre + group.getDisplayName() + "," + ldapGroupDn + ldapBaseDn, attrs);
 				ctx.close();
-				LOGGER.debug("[updateGroup] Group " + group.getDisplayName() + " successfully created.");
+				LOGGER.info("[updateGroup] Group " + group.getDisplayName() + " successfully created.");
 				groupMap.put(id, group);
 				return group;
 			}
@@ -734,11 +737,11 @@ public class SCIMServiceImpl implements SCIMService {
 	 */
 	public void deleteGroup(String id) throws OnPremUserManagementException, EntityNotFoundException {
 		if (groupMap.containsKey(id)) {
-			LOGGER.debug("[deleteGroup] Deleting group: " + id);
 			SCIMGroup group = groupMap.remove(id);
 			try {
 				LdapContext ctx = new InitialLdapContext(env, null);
 				ctx.destroySubcontext(ldapGroupPre + group.getDisplayName() + "," + ldapGroupDn + ldapBaseDn);
+				LOGGER.info("[deleteGroup] Deleting group: " + id);
 				ctx.close();
 			} catch (NamingException e) {
 				handleGeneralException(e);
