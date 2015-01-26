@@ -1,6 +1,6 @@
 package com.okta.scim.server.example;
 
-//HELLA IMPORTS
+//IMPORTS!
 import com.okta.scim.server.capabilities.UserManagementCapabilities;
 import com.okta.scim.server.exception.DuplicateGroupException;
 import com.okta.scim.server.exception.EntityNotFoundException;
@@ -196,25 +196,21 @@ public class SCIMServiceImpl implements SCIMService {
 	 * @throws NamingException
 	 */
 	private void initUsers() throws NamingException {
-//		try {
-			LdapContext ctx = new InitialLdapContext(env, null);
-			String dn = ldapUserDn + ldapBaseDn;
-			ctx.setRequestControls(null);
-			SearchControls controls = new SearchControls();
-			controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
-			NamingEnumeration<?> namingEnum = ctx.search(dn, ldapUserFilter, controls);
-			int counter = 0;
-			while (namingEnum.hasMore()) {
-				SearchResult result = (SearchResult) namingEnum.next();
-				Attributes attrs = result.getAttributes();
-				SCIMUser user = constructUserFromAttrs(attrs);
-				userMap.put(user.getId(), user);
-			}
-			ctx.close();
-			namingEnum.close();
-//		} catch (NamingException e) {
-//			handleGeneralException(e);
-//		}
+		LdapContext ctx = new InitialLdapContext(env, null);
+		String dn = ldapUserDn + ldapBaseDn;
+		ctx.setRequestControls(null);
+		SearchControls controls = new SearchControls();
+		controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
+		NamingEnumeration<?> namingEnum = ctx.search(dn, ldapUserFilter, controls);
+		int counter = 0;
+		while (namingEnum.hasMore()) {
+			SearchResult result = (SearchResult) namingEnum.next();
+			Attributes attrs = result.getAttributes();
+			SCIMUser user = constructUserFromAttrs(attrs);
+			userMap.put(user.getId(), user);
+		}
+		ctx.close();
+		namingEnum.close();
 	}
 
 	/**
@@ -226,26 +222,21 @@ public class SCIMServiceImpl implements SCIMService {
 	 * @throws NamingException
 	 */
 	private void initGroups() throws NamingException {
-//		try {
-			LdapContext ctx = new InitialLdapContext(env, null);
-			String dn = ldapGroupDn + ldapBaseDn;
-			ctx.setRequestControls(null);
-			SearchControls controls = new SearchControls();
-			controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
-			NamingEnumeration<?> namingEnum = ctx.search(dn, ldapGroupFilter, controls);
-			int counter = 0;
-			while (namingEnum.hasMore()) {
-				SearchResult result = (SearchResult) namingEnum.next();
-				Attributes attrs = result.getAttributes();
-				SCIMGroup group = constructGroupFromAttrs(attrs);
-				groupMap.put(group.getId(), group);
-			}
-			ctx.close();
-			namingEnum.close();
-			//TODO: fix catching general exceptions
-//		} catch (Exception e) {
-//			handleGeneralException(e);
-//		}
+		LdapContext ctx = new InitialLdapContext(env, null);
+		String dn = ldapGroupDn + ldapBaseDn;
+		ctx.setRequestControls(null);
+		SearchControls controls = new SearchControls();
+		controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
+		NamingEnumeration<?> namingEnum = ctx.search(dn, ldapGroupFilter, controls);
+		int counter = 0;
+		while (namingEnum.hasMore()) {
+			SearchResult result = (SearchResult) namingEnum.next();
+			Attributes attrs = result.getAttributes();
+			SCIMGroup group = constructGroupFromAttrs(attrs);
+			groupMap.put(group.getId(), group);
+		}
+		ctx.close();
+		namingEnum.close();
 	}
 
 	/**
@@ -309,7 +300,6 @@ public class SCIMServiceImpl implements SCIMService {
 			ctx.close();
 			userMap.put(user.getId(), user);
 			LOGGER.debug("[createUser] User " + user.getName().getFormattedName() + " successfully inserted into Directory Service.");
-			//TODO: fix catching general exceptions
 		} catch (NamingException | InvalidDataTypeException e) {
 			handleGeneralException(e);
 			LOGGER.error(e.getMessage());
@@ -349,9 +339,6 @@ public class SCIMServiceImpl implements SCIMService {
 				ctx.close();
 				LOGGER.info("[updateUser] User " + user.getName().getFormattedName() + " successfully deleted from Directory Service.");
 				if(user.isActive()) {
-					//LOGGER.info("[updateUser] User is still active, re-adding user.");
-					//Attributes attrs = constructAttrsFromUser(user);
-					//ctx.createSubcontext(dn, attrs);
 					this.createUser(user);
 				}
 			} catch (NamingException e) {
@@ -362,7 +349,6 @@ public class SCIMServiceImpl implements SCIMService {
 			LOGGER.warn("[updateUser] User " + user.getName().getFormattedName() + " not found, if user is still active, re-adding.");
 			if(user.isActive()) {
 				return this.createUser(user);
-				//throw new EntityNotFoundException();
 			}
 		}
 		return user;
@@ -636,15 +622,9 @@ public class SCIMServiceImpl implements SCIMService {
 			ctx.createSubcontext(ldapGroupPre + group.getDisplayName() + "," + ldapGroupDn + ldapBaseDn, attrs);
 			ctx.close();
 			LOGGER.debug("[createGroup] Group " + group.getDisplayName() + " successfully created.");
-			//TODO: fix catching general exceptions
 		} catch (NamingException e) {
-//			if(e instanceof InvalidAttributeValueException) {
-//				LOGGER.error(((InvalidAttributeValueException) e).getExplanation());
-//			}
-//			else {
 			handleGeneralException(e);
 			throw new OnPremUserManagementException("o01234", e.getMessage(), e);
-//			}
 		}
 		groupMap.put(group.getId(), group);
 		return group;
@@ -664,7 +644,6 @@ public class SCIMServiceImpl implements SCIMService {
 	 */
 	public SCIMGroup updateGroup(String id, SCIMGroup group) throws OnPremUserManagementException {
 		SCIMGroup existingGroup = groupMap.get(id);
-		//LOGGER.debug("[updateGroup] Trying to update "+ id + " with: "  + group.toString());
 		try {
 			if (existingGroup != null) {
 				LdapContext ctx = new InitialLdapContext(env, null);
@@ -860,32 +839,27 @@ public class SCIMServiceImpl implements SCIMService {
 		Attribute passwd = attrs.get(ldapUserCore.get("password"));
 		Attribute phoneNumsAttr = attrs.get(ldapUserCore.get("phoneNumbers"));
 		Attribute emailsAttr = new BasicAttribute(ldapUserCore.get("emails"));
-//		try{
-			//Special cases for attributes that are not simple values
-			if(user.getPassword() != null) {
-				//passwd.add(hashPassword(user.getPassword()));
-				passwd.add(user.getPassword());
+		//Special cases for attributes that are not simple values
+		if(user.getPassword() != null) {
+			//passwd.add(hashPassword(user.getPassword()));
+			passwd.add(user.getPassword());
+		}
+		if(user.getPhoneNumbers() != null) {
+			Object[] phoneNums = user.getPhoneNumbers().toArray();
+			for(int i = 0; i < phoneNums.length; i++) {
+				PhoneNumber num = (PhoneNumber) phoneNums[i];
+				phoneNumsAttr.add(num.getValue() + "," + num.isPrimary() + "," + num.getType().getTypeString());
 			}
-			if(user.getPhoneNumbers() != null) {
-				Object[] phoneNums = user.getPhoneNumbers().toArray();
-				for(int i = 0; i < phoneNums.length; i++) {
-					PhoneNumber num = (PhoneNumber) phoneNums[i];
-					phoneNumsAttr.add(num.getValue() + "," + num.isPrimary() + "," + num.getType().getTypeString());
-				}
-				attrs.put(phoneNumsAttr);
+			attrs.put(phoneNumsAttr);
+		}
+		if(user.getEmails() != null) {
+			Object[] emails = user.getEmails().toArray();
+			for(int i = 0; i < emails.length; i++) {
+				Email email = (Email) emails[i];//Yo,dawg I hurd you like emails...
+				emailsAttr.add(email.getValue() + "|" + email.isPrimary() + "|" + email.getType());
 			}
-			if(user.getEmails() != null) {
-				Object[] emails = user.getEmails().toArray();
-				for(int i = 0; i < emails.length; i++) {
-					Email email = (Email) emails[i];//Yo,dawg I hurd you like emails...
-					emailsAttr.add(email.getValue() + "|" + email.isPrimary() + "|" + email.getType());
-				}
-				attrs.put(emailsAttr);
-			}
-			//TODO: fix catching general exceptions
-//		} catch (Exception e) {
-//			handleGeneralException(e);
-//		}
+			attrs.put(emailsAttr);
+		}
 		attrs.put(objclass);
 		return constructCustomAttrsFromUser(user, attrs);
 	}
@@ -910,33 +884,24 @@ public class SCIMServiceImpl implements SCIMService {
 		for(int i = 0; i < keys.length; i++) {
 			configLine = ldapUserCustom.get(keys[i]);
 			parentNames = emptyArr;
-			//LOGGER.debug(Arrays.toString(configLine));
-			//LOGGER.debug(configLine.length);
 			if(configLine.length > 3) parentNames = Arrays.copyOfRange(configLine, 3, configLine.length);
-//			try {
-				//LOGGER.debug(Arrays.toString(parentNames));
-				customAttr = new BasicAttribute(keys[i]);
-				if(configLine[0].equals("int"))
-					value = user.getCustomIntValue(configLine[1], configLine[2], parentNames);
-				else if(configLine[0].equals("boolean"))
-					value = user.getCustomBooleanValue(configLine[1], configLine[2], parentNames);
-				else if(configLine[0].equals("string"))
-					value = user.getCustomStringValue(configLine[1], configLine[2], parentNames);
-				else if(configLine[0].equals("double"))
-					value = user.getCustomDoubleValue(configLine[1], configLine[2], parentNames);
-				else
-					throw new OnPremUserManagementException("o12345", "Unexpected type for Custom attrs in config: " + Arrays.toString(configLine));
-				if(value != null) {
-					customAttr.add(value.toString());
-					//LOGGER.debug(value.toString());
-					attrs.put(customAttr);
-				} else {
-					//throw new OnPremUserManagementException("o12345", "Custom Attr: " + Arrays.toString(configLine) + " was null for SCIMUser: " + user.getUserName());
-				}
-			//TODO: fix catching general exceptions
-//			} catch (Exception e) {
-//				handleGeneralException(e);
-//			}
+			customAttr = new BasicAttribute(keys[i]);
+			if(configLine[0].equals("int"))
+				value = user.getCustomIntValue(configLine[1], configLine[2], parentNames);
+			else if(configLine[0].equals("boolean"))
+				value = user.getCustomBooleanValue(configLine[1], configLine[2], parentNames);
+			else if(configLine[0].equals("string"))
+				value = user.getCustomStringValue(configLine[1], configLine[2], parentNames);
+			else if(configLine[0].equals("double"))
+				value = user.getCustomDoubleValue(configLine[1], configLine[2], parentNames);
+			else
+				throw new OnPremUserManagementException("o12345", "Unexpected type for Custom attrs in config: " + Arrays.toString(configLine));
+			if(value != null) {
+				customAttr.add(value.toString());
+				attrs.put(customAttr);
+			} else {
+				throw new OnPremUserManagementException("o12345", "Custom Attr: " + Arrays.toString(configLine) + " was null for SCIMUser: " + user.getUserName());
+			}
 		}
 		return attrs;
 	}
@@ -953,71 +918,58 @@ public class SCIMServiceImpl implements SCIMService {
 	private SCIMUser constructUserFromAttrs(Attributes attrs) throws NamingException {
 		//create objects, pull in values from attrs using mapping from properties file.
 		SCIMUser user = new SCIMUser();
-//		try {
-			String formattedNameLookup = ldapUserCore.get("formatted");
-			String formattedName = attrs.get(formattedNameLookup).get().toString();//displayName
-			String snLookup = ldapUserCore.get("familyName");
-			String sn = attrs.get(snLookup).get().toString();//sn
-			String givenNameLookup = ldapUserCore.get("givenName");
-			String givenName = attrs.get(givenNameLookup).get().toString();
-			String idLookup = ldapUserCore.get("id");
-			String id = attrs.get(idLookup).get().toString();
-			String uidLookup = ldapUserCore.get("userName");
-			String uid = attrs.get(uidLookup).get().toString();
-//			String passwdLookup = ldapUserCore.get("password");
-//			String passwd = "";
-//			if(attrs.get("userPassword") != null)
-//				passwd = new String((byte[])attrs.get(passwdLookup).get());
-			ArrayList<PhoneNumber> phoneNums = new ArrayList<PhoneNumber>();
-			ArrayList<Email> emails = new ArrayList<Email>();
-			Name fullName = new Name(formattedName, sn, givenName);
-			String phoneNumsAttrLookup = ldapUserCore.get("phoneNumbers");
-			Attribute phoneNumsAttr = attrs.get(phoneNumsAttrLookup);
-			String emailsAttrLookup = ldapUserCore.get("emails");
-			Attribute emailsAttr = attrs.get(emailsAttrLookup);
-
-			user.setName(fullName);
-			user.setUserName(uid);
-			user.setId(id);
-			user.setActive(true);
-//			user.setPassword(passwd);
-//			//for each phone number, parse line from attrs and build PhoneNumber obj
-			if(phoneNumsAttr != null) {
-				for(int i = 0; i < phoneNumsAttr.size(); i++) {
-					String phoneNum = phoneNumsAttr.get(i).toString();
-					String[] phoneNumParts = splitString(phoneNum, ",");
-					if(phoneNumParts.length > 2) {
-						PhoneNumber.PhoneNumberType type = PhoneNumber.PhoneNumberType.valueOf(phoneNumParts[2].toUpperCase());
-						PhoneNumber numEntry = new PhoneNumber(phoneNumParts[0], type, Boolean.parseBoolean(phoneNumParts[1]));
-						phoneNums.add(numEntry);
-					}
-					else {
-						LOGGER.error("[constructUserFromAttrs] String: " + phoneNum + "was ill formatted, expected 3 segments.");
-					}
+		String formattedNameLookup = ldapUserCore.get("formatted");
+		String formattedName = attrs.get(formattedNameLookup).get().toString();//displayName
+		String snLookup = ldapUserCore.get("familyName");
+		String sn = attrs.get(snLookup).get().toString();//sn
+		String givenNameLookup = ldapUserCore.get("givenName");
+		String givenName = attrs.get(givenNameLookup).get().toString();
+		String idLookup = ldapUserCore.get("id");
+		String id = attrs.get(idLookup).get().toString();
+		String uidLookup = ldapUserCore.get("userName");
+		String uid = attrs.get(uidLookup).get().toString();
+		ArrayList<PhoneNumber> phoneNums = new ArrayList<PhoneNumber>();
+		ArrayList<Email> emails = new ArrayList<Email>();
+		Name fullName = new Name(formattedName, sn, givenName);
+		String phoneNumsAttrLookup = ldapUserCore.get("phoneNumbers");
+		Attribute phoneNumsAttr = attrs.get(phoneNumsAttrLookup);
+		String emailsAttrLookup = ldapUserCore.get("emails");
+		Attribute emailsAttr = attrs.get(emailsAttrLookup);
+		user.setName(fullName);
+		user.setUserName(uid);
+		user.setId(id);
+		user.setActive(true);
+		//for each phone number, parse line from attrs and build PhoneNumber obj
+		if(phoneNumsAttr != null) {
+			for(int i = 0; i < phoneNumsAttr.size(); i++) {
+				String phoneNum = phoneNumsAttr.get(i).toString();
+				String[] phoneNumParts = splitString(phoneNum, ",");
+				if(phoneNumParts.length > 2) {
+					PhoneNumber.PhoneNumberType type = PhoneNumber.PhoneNumberType.valueOf(phoneNumParts[2].toUpperCase());
+					PhoneNumber numEntry = new PhoneNumber(phoneNumParts[0], type, Boolean.parseBoolean(phoneNumParts[1]));
+					phoneNums.add(numEntry);
 				}
-				user.setPhoneNumbers(phoneNums);
-			}
-			//same for emails, TODO: can probably do this better
-			if(emailsAttr != null) {
-				for(int i = 0; i < emailsAttr.size(); i++) {
-					String email = emailsAttr.get(i).toString();
-					String[] emailParts = splitString(email, "|");
-					if(emailParts.length > 2) {
-						Email emailEntry = new Email(emailParts[0], emailParts[2], Boolean.parseBoolean(emailParts[1]));
-						emails.add(emailEntry);
-					}
-					else {
-						LOGGER.error("[constructUserFromAttrs] String: " + email + "was ill formatted, expected 3 segments.");
-					}
+				else {
+					LOGGER.error("[constructUserFromAttrs] String: " + phoneNum + "was ill formatted, expected 3 segments.");
 				}
-				user.setEmails(emails);
 			}
-			//TODO: fix catching general exceptions
-//		} catch (NullPointerException|NamingException e) {
-//			StringWriter errors = new StringWriter();
-//			e.printStackTrace(new PrintWriter(errors));
-//			LOGGER.error(errors.toString());
-//		}
+			user.setPhoneNumbers(phoneNums);
+		}
+		//same for emails, TODO: can probably do this better
+		if(emailsAttr != null) {
+			for(int i = 0; i < emailsAttr.size(); i++) {
+				String email = emailsAttr.get(i).toString();
+				String[] emailParts = splitString(email, "|");
+				if(emailParts.length > 2) {
+					Email emailEntry = new Email(emailParts[0], emailParts[2], Boolean.parseBoolean(emailParts[1]));
+					emails.add(emailEntry);
+				}
+				else {
+					LOGGER.error("[constructUserFromAttrs] String: " + email + "was ill formatted, expected 3 segments.");
+				}
+			}
+			user.setEmails(emails);
+		}
 		return constructUserFromCustomAttrs(user, attrs);
 	}
 
@@ -1043,27 +995,20 @@ public class SCIMServiceImpl implements SCIMService {
 			parentNames = emptyArr;
 			//LOGGER.debug(Arrays.toString(configLine));
 			if(configLine.length > 3) parentNames = Arrays.copyOfRange(configLine, 3, configLine.length);
-//			try {
-				customAttr = attrs.get(keys[i]);
-				value = customAttr.get();
-				//LOGGER.debug(value);
-				//TODO: make this better
-				//set type for value pulled from Attributes
-				if(configLine[0].equals("int"))
-					user.setCustomIntValue(configLine[1], configLine[2], Integer.parseInt(value.toString()), parentNames);
-				else if(configLine[0].equals("boolean"))
-					user.setCustomBooleanValue(configLine[1], configLine[2], Boolean.valueOf(value.toString()), parentNames);
-				else if(configLine[0].equals("string"))
-					user.setCustomStringValue(configLine[1], configLine[2], (String) value, parentNames);
-				else if(configLine[0].equals("double"))
-					user.setCustomDoubleValue(configLine[1], configLine[2], Double.parseDouble(value.toString()), parentNames);
-				else
-					throw new OnPremUserManagementException("o12345", "Unexpected type for Custom attrs in config: " + Arrays.toString(configLine));
-//			} catch (NamingException e) {
-//				StringWriter errors = new StringWriter();
-//				e.printStackTrace(new PrintWriter(errors));
-//				LOGGER.error(errors.toString());
-//			}
+			customAttr = attrs.get(keys[i]);
+			value = customAttr.get();
+			//TODO: make this better
+			//set type for value pulled from Attributes
+			if(configLine[0].equals("int"))
+				user.setCustomIntValue(configLine[1], configLine[2], Integer.parseInt(value.toString()), parentNames);
+			else if(configLine[0].equals("boolean"))
+				user.setCustomBooleanValue(configLine[1], configLine[2], Boolean.valueOf(value.toString()), parentNames);
+			else if(configLine[0].equals("string"))
+				user.setCustomStringValue(configLine[1], configLine[2], (String) value, parentNames);
+			else if(configLine[0].equals("double"))
+				user.setCustomDoubleValue(configLine[1], configLine[2], Double.parseDouble(value.toString()), parentNames);
+			else
+				throw new OnPremUserManagementException("o12345", "Unexpected type for Custom attrs in config: " + Arrays.toString(configLine));
 		}
 		return user;
 	}
@@ -1081,39 +1026,34 @@ public class SCIMServiceImpl implements SCIMService {
 		Attribute attr;
 		Object value;
 		LOGGER.info("[constructAttrsFromGroup] constructing Attrs from group " + group.getDisplayName());
-//		try {
-			Attribute objclass = new BasicAttribute("objectClass");
-			for(int i = 0; i < ldapGroupClass.length; i++) objclass.add(ldapGroupClass[i]);
-			for(int i = 0; i < keys.length; i++) {
-				String attrType = ldapGroupCore.get(keys[i]);
-				attr = new BasicAttribute(attrType);
-				if(keys[i].equals("id")) {
-					value = group.getId();
-				} else if(keys[i].equals("members") && (group.getMembers() != null)) {
-					attrs.put(attr);
-					continue;
-				} else {
-					continue;
-				}
-				attr.add(value.toString());
+		Attribute objclass = new BasicAttribute("objectClass");
+		for(int i = 0; i < ldapGroupClass.length; i++) objclass.add(ldapGroupClass[i]);
+		for(int i = 0; i < keys.length; i++) {
+			String attrType = ldapGroupCore.get(keys[i]);
+			attr = new BasicAttribute(attrType);
+			if(keys[i].equals("id")) {
+				value = group.getId();
+			} else if(keys[i].equals("members") && (group.getMembers() != null)) {
 				attrs.put(attr);
+				continue;
+			} else {
+				continue;
 			}
-			Attribute member = attrs.get(ldapGroupCore.get("members"));
-			attrs.put(objclass);
-			//builds dn from all members, assumes the members are located in the same area as users.
-			if(group.getMembers() != null ) {
-				Object[] members = group.getMembers().toArray();
-				for(int i = 0; i < members.length; i++) {
-					Membership mem = (Membership) members[i];
-					String name = ldapUserPre + mem.getDisplayName() + "," + ldapUserDn + ldapBaseDn;
-					DistinguishedName dn = new DistinguishedName(name);
-					member.add(dn.encode());
-				}
+			attr.add(value.toString());
+			attrs.put(attr);
+		}
+		Attribute member = attrs.get(ldapGroupCore.get("members"));
+		attrs.put(objclass);
+		//builds dn from all members, assumes the members are located in the same area as users.
+		if(group.getMembers() != null ) {
+			Object[] members = group.getMembers().toArray();
+			for(int i = 0; i < members.length; i++) {
+				Membership mem = (Membership) members[i];
+				String name = ldapUserPre + mem.getDisplayName() + "," + ldapUserDn + ldapBaseDn;
+				DistinguishedName dn = new DistinguishedName(name);
+				member.add(dn.encode());
 			}
-			//TODO: fix catching general exceptions
-//		} catch (Exception e) {
-//			handleGeneralException(e);
-//		}
+		}
 		return attrs;
 	}
 
@@ -1135,36 +1075,31 @@ public class SCIMServiceImpl implements SCIMService {
 		filter.setFilterType(filterType);
 		filterAttr.setAttributeName("userName");
 		filter.setFilterAttribute(filterAttr);
-//		try {
-			String cn = attrs.get("cn").get().toString();
-			LOGGER.debug("[constructGroupFromAttrs] Constructing Group " + cn + " from Attrs.");
-			ArrayList<Membership> memberList = new ArrayList<Membership>();
-			String memberAttrLookup = ldapGroupCore.get("members");
-			Attribute memberAttr = attrs.get(memberAttrLookup);
-			String idLookup = ldapGroupCore.get("id");
-			String id = attrs.get(idLookup).get().toString();
-			group.setDisplayName(cn);
-			group.setId(id);
-			if(memberAttr != null) {
-				for(int i = 0; i < memberAttr.size(); i++) {
-					String memberDn = memberAttr.get(i).toString();
-					DistinguishedName dn = new DistinguishedName(memberDn);
-					LdapRdn memberCn = dn.getLdapRdn("cn");
-					filter.setFilterValue(memberCn.getValue());
-					//searches through cache to retrieve ids for group memebers,used in SCIMGroup
-					result = getUsersByEqualityFilter(filter);
-					if(result.size() == 1) {
-						SCIMUser resultUser = result.get(0);
-						Membership memHolder = new Membership(resultUser.getId(), memberCn.getValue());
-						memberList.add(memHolder);
-					}
+		String cn = attrs.get("cn").get().toString();
+		LOGGER.debug("[constructGroupFromAttrs] Constructing Group " + cn + " from Attrs.");
+		ArrayList<Membership> memberList = new ArrayList<Membership>();
+		String memberAttrLookup = ldapGroupCore.get("members");
+		Attribute memberAttr = attrs.get(memberAttrLookup);
+		String idLookup = ldapGroupCore.get("id");
+		String id = attrs.get(idLookup).get().toString();
+		group.setDisplayName(cn);
+		group.setId(id);
+		if(memberAttr != null) {
+			for(int i = 0; i < memberAttr.size(); i++) {
+				String memberDn = memberAttr.get(i).toString();
+				DistinguishedName dn = new DistinguishedName(memberDn);
+				LdapRdn memberCn = dn.getLdapRdn("cn");
+				filter.setFilterValue(memberCn.getValue());
+				//searches through cache to retrieve ids for group memebers,used in SCIMGroup
+				result = getUsersByEqualityFilter(filter);
+				if(result.size() == 1) {
+					SCIMUser resultUser = result.get(0);
+					Membership memHolder = new Membership(resultUser.getId(), memberCn.getValue());
+					memberList.add(memHolder);
 				}
-				group.setMembers(memberList);
 			}
-			//TODO: fix catching general exceptions
-//		} catch (Exception e) {
-//			handleGeneralException(e);
-//		}
+			group.setMembers(memberList);
+		}
 		return group;
 	}
 
