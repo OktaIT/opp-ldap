@@ -1,5 +1,6 @@
 package com.okta.scim.server.example;
 
+//HELLA IMPORTS
 import com.okta.scim.server.capabilities.UserManagementCapabilities;
 import com.okta.scim.server.exception.DuplicateGroupException;
 import com.okta.scim.server.exception.EntityNotFoundException;
@@ -104,6 +105,7 @@ public class SCIMServiceImpl implements SCIMService {
 	//This should be the name of the Universal Directory schema you created. We are assuming this name is "custom"
 	private static final String UD_SCHEMA_NAME = "custom";
 	private static final Logger LOGGER = Logger.getLogger(SCIMServiceImpl.class);
+	//properties file stored in /Okta-Provisioning-Connector-SDK/example-server/src/main/resources
 	private static final String CONF_FILENAME = "connector.properties";
 
 	private Map<String, SCIMUser> userMap = new HashMap<String, SCIMUser>();
@@ -129,6 +131,11 @@ public class SCIMServiceImpl implements SCIMService {
 		initGroups();
 	}
 
+	/**
+	 * Helper function that pulls data from properties file.
+	 *
+	 * @throws ConfigurationException
+	 */
 	private void initLdapVars() throws ConfigurationException {
 		Configuration config;
 		String[] userCoreMapHolder;
@@ -180,6 +187,14 @@ public class SCIMServiceImpl implements SCIMService {
 		}
 	}
 
+	/**
+	 * Helper method that is called when connector is started.
+	 * Rebuilds Users in cache if Users exist in Ldap already.
+	 * Not necessary for us, but nice to be able to rebuild cache
+	 * when testing.
+	 *
+	 * @throws NamingException
+	 */
 	private void initUsers() throws NamingException {
 //		try {
 			LdapContext ctx = new InitialLdapContext(env, null);
@@ -202,6 +217,14 @@ public class SCIMServiceImpl implements SCIMService {
 //		}
 	}
 
+	/**
+	 * Helper method that is called when connector is started.
+	 * Rebuilds Groups in cache if Groups exist in Ldap already.
+	 * Not necessary for us, but nice to be able to rebuild cache
+	 * when testing.
+	 *
+	 * @throws NamingException
+	 */
 	private void initGroups() throws NamingException {
 //		try {
 			LdapContext ctx = new InitialLdapContext(env, null);
@@ -225,6 +248,10 @@ public class SCIMServiceImpl implements SCIMService {
 //		}
 	}
 
+	/**
+	 * Methods left from skeleton SDK code. Can't remove or stuff breaks.
+	 * None of this is used.
+	 */
 	public String getUsersFilePath() {
 		return usersFilePath;
 	}
@@ -240,7 +267,31 @@ public class SCIMServiceImpl implements SCIMService {
 	public void setGroupsFilePath(String groupsFilePath) {
 		this.groupsFilePath = groupsFilePath;
 	}
+	/**
+	 * End Leftovers.
+	 *
+	 */
 
+
+	/**
+	 * This method creates a user. All the standard attributes of the SCIM User can be retrieved by using the
+	 * getters on the SCIMStandardUser member of the SCIMUser object.
+	 * <p/>
+	 * If there are custom schemas in the SCIMUser input, you can retrieve them by providing the name of the
+	 * custom property. (Example : SCIMUser.getStringCustomProperty("schemaName", "customFieldName")), if the
+	 * property of string type.
+	 * <p/>
+	 * This method is invoked when a POST is made to /Users with a SCIM payload representing a user
+	 * to be created.
+	 * <p/>
+	 * NOTE: While the user's group memberships will be populated by Okta, according to the SCIM Spec
+	 * (http://www.simplecloud.info/specs/draft-scim-core-schema-01.html#anchor4) that information should be
+	 * considered read-only. Group memberships should only be updated through calls to createGroup or updateGroup.
+	 *
+	 * @param user SCIMUser representation of the SCIM String payload sent by the SCIM client.
+	 * @return the created SCIMUser.
+	 * @throws OnPremUserManagementException
+	 */
 	@Override
 	public SCIMUser createUser(SCIMUser user) throws OnPremUserManagementException {
 		String id = generateNextId(USER_RESOURCE);
@@ -267,6 +318,21 @@ public class SCIMServiceImpl implements SCIMService {
 		return user;
 	}
 
+	/**
+	 * This method updates a user.
+	 * <p/>
+	 * This method is invoked when a PUT is made to /Users/{id} with the SCIM payload representing a user to
+	 * be updated.
+	 * <p/>
+	 * NOTE: While the user's group memberships will be populated by Okta, according to the SCIM Spec
+	 * (http://www.simplecloud.info/specs/draft-scim-core-schema-01.html#anchor4) that information should be
+	 * considered read-only. Group memberships should only be updated through calls to createGroup or updateGroup.
+	 *
+	 * @param id   the id of the SCIM user.
+	 * @param user SCIMUser representation of the SCIM String payload sent by the SCIM client.
+	 * @return the updated SCIMUser.
+	 * @throws OnPremUserManagementException
+	 */
 	public SCIMUser updateUser(String id, SCIMUser user) throws OnPremUserManagementException, EntityNotFoundException {
 		if (userMap == null) {
 			throw new OnPremUserManagementException("o12345", "Cannot update the user. The userMap is null");
@@ -302,6 +368,19 @@ public class SCIMServiceImpl implements SCIMService {
 		return user;
 	}
 
+	/**
+	 * Get all the users.
+	 * <p/>
+	 * This method is invoked when a GET is made to /Users
+	 * In order to support pagination (So that the client and the server are not overwhelmed), this method supports querying based on a start index and the
+	 * maximum number of results expected by the client. The implementation is responsible for maintaining indices for the SCIM Users.
+	 *
+	 * @param pageProperties denotes the pagination properties
+	 * @param filter         denotes the filter
+	 * @return the response from the server, which contains a list of  users along with the total number of results, start index and the items per page
+	 * @throws com.okta.scim.server.exception.OnPremUserManagementException
+	 *
+	 */
 	public SCIMUserQueryResponse getUsers(PaginationProperties pageProperties, SCIMFilter filter) throws OnPremUserManagementException {
 		List<SCIMUser> users = new ArrayList<SCIMUser>();
 		LOGGER.debug("[getUsers]");
@@ -348,6 +427,27 @@ public class SCIMServiceImpl implements SCIMService {
 		return response;
 	}
 
+	/**
+	 * A simple example of how to use <code>SCIMFilter</code> to return a list of users which match the filter criteria.
+	 * <p/>
+	 * An Admin who configures the UM would specify a SCIM field name as the UniqueId field name. This field and its value would be sent by Okta in the filter.
+	 * While implementing the connector, the below points should be noted about the filters.
+	 * <p/>
+	 * If you choose a single valued attribute as the UserId field name while configuring the App Instance on Okta,
+	 * you would get an equality filter here.
+	 * For example, if you choose userName, the Filter object below may represent an equality filter like "userName eq "someUserName""
+	 * If you choose the name.familyName as the UserId field name, the filter object may represent an equality filter like
+	 * "name.familyName eq "someLastName""
+	 * If you choose a multivalued attribute (email, for example), the <code>SCIMFilter</code> object below may represent an OR filter consisting of two sub-filters like
+	 * "email eq "abc@def.com" OR email eq "def@abc.com""
+	 * Of the few multi valued attributes part of the SCIM Core Schema (Like email, address, phone number), only email would be supported as a UserIdField name on Okta.
+	 * So, you would have to deal with OR filters only if you choose email.
+	 * <p/>
+	 * When you get a <code>SCIMFilter</code>, you should check the filter field name (And make sure it is the same field which was configured with Okta), value, condition, etc. as shown in the examples below.
+	 *
+	 * @param filter the SCIM filter
+	 * @return list of users that match the filter
+	 */
 	private List<SCIMUser> getUserByFilter(SCIMFilter filter) {
 		List<SCIMUser> users = new ArrayList<SCIMUser>();
 		SCIMFilterType filterType = filter.getFilterType();
@@ -363,6 +463,12 @@ public class SCIMServiceImpl implements SCIMService {
 		return users;
 	}
 
+	/**
+	 * This is an example for how to deal with an OR filter. An OR filter consists of multiple sub equality filters.
+	 *
+	 * @param filter the OR filter with a set of sub filters expressions
+	 * @return list of users that match any of the filters
+	 */
 	private List<SCIMUser> getUsersByOrFilter(SCIMFilter filter) {
 		//An OR filter would contain a list of filter expression. Each expression is a SCIMFilter by itself.
 		//Ex : "email eq "abc@def.com" OR email eq "def@abc.com""
@@ -401,6 +507,13 @@ public class SCIMServiceImpl implements SCIMService {
 		return users;
 	}
 
+	/**
+	 * This is an example of how to deal with an equality filter.<p>
+	 * If you choose a custom field/complex field (name.familyName) or any other singular field (userName/externalId), you should get an equality filter here.
+	 *
+	 * @param filter the EQUALS filter
+	 * @return list of users that match the filter
+	 */
 	private List<SCIMUser> getUsersByEqualityFilter(SCIMFilter filter) {
 		String fieldName = filter.getFilterAttribute().getAttributeName();
 		String value = filter.getFilterValue();
@@ -462,6 +575,16 @@ public class SCIMServiceImpl implements SCIMService {
 		return users;
 	}
 
+	/**
+	 * Get a particular user.
+	 * <p/>
+	 * This method is invoked when a GET is made to /Users/{id}
+	 *
+	 * @param id the Id of the SCIM User
+	 * @return the user corresponding to the id
+	 * @throws com.okta.scim.server.exception.OnPremUserManagementException
+	 *
+	 */
 	@Override
 	public SCIMUser getUser(String id) throws OnPremUserManagementException, EntityNotFoundException {
 		SCIMUser user = userMap.get(id);
@@ -473,6 +596,22 @@ public class SCIMServiceImpl implements SCIMService {
 		}
 	}
 
+	/**
+	 * This method creates a group. All the standard attributes of the SCIM group can be retrieved by using the
+	 * getters on the SCIMStandardGroup member of the SCIMGroup object.
+	 * <p/>
+	 * If there are custom schemas in the SCIMGroup input, you can retrieve them by providing the name of the
+	 * custom property. (Example : SCIMGroup.getCustomProperty("schemaName", "customFieldName"))
+	 * <p/>
+	 * This method is invoked when a POST is made to /Groups with a SCIM payload representing a group
+	 * to be created.
+	 *
+	 * @param group SCIMGroup representation of the SCIM String payload sent by the SCIM client
+	 * @return the created SCIMGroup
+	 * @throws com.okta.scim.server.exception.OnPremUserManagementException
+	 *
+	 */
+	@Override
 	public SCIMGroup createGroup(SCIMGroup group) throws OnPremUserManagementException, DuplicateGroupException {
 		String displayName = group.getDisplayName();
 		LOGGER.debug("[createGroup] Creating group: " + group.getDisplayName());
@@ -511,6 +650,18 @@ public class SCIMServiceImpl implements SCIMService {
 		return group;
 	}
 
+	/**
+	 * This method updates a group.
+	 * <p/>
+	 * This method is invoked when a PUT is made to /Groups/{id} with the SCIM payload representing a group to
+	 * be updated.
+	 *
+	 * @param id    the id of the SCIM group
+	 * @param group SCIMGroup representation of the SCIM String payload sent by the SCIM client
+	 * @return the updated SCIMGroup
+	 * @throws com.okta.scim.server.exception.OnPremUserManagementException
+	 *
+	 */
 	public SCIMGroup updateGroup(String id, SCIMGroup group) throws OnPremUserManagementException {
 		SCIMGroup existingGroup = groupMap.get(id);
 		//LOGGER.debug("[updateGroup] Trying to update "+ id + " with: "  + group.toString());
@@ -542,6 +693,19 @@ public class SCIMServiceImpl implements SCIMService {
 		}
 	}
 
+	/**
+	 * Get all the groups.
+	 * <p/>
+	 * This method is invoked when a GET is made to /Groups
+	 * In order to support pagination (So that the client and the server) are not overwhelmed, this method supports querying based on a start index and the
+	 * maximum number of results expected by the client. The implementation is responsible for maintaining indices for the SCIM groups.
+	 *
+	 * @param pageProperties @see com.okta.scim.util.model.PaginationProperties An object holding the properties needed for pagination - startindex and the count.
+	 * @return SCIMGroupQueryResponse the response from the server containing the total number of results, start index and the items per page along with a list of groups
+	 * @throws com.okta.scim.server.exception.OnPremUserManagementException
+	 *
+	 */
+	@Override
 	public SCIMGroupQueryResponse getGroups(PaginationProperties pageProperties) throws OnPremUserManagementException {
 		SCIMGroupQueryResponse response = new SCIMGroupQueryResponse();
 		int totalResults = groupMap.size();
@@ -561,6 +725,16 @@ public class SCIMServiceImpl implements SCIMService {
 		return response;
 	}
 
+	/**
+	 * Get a particular group.
+	 * <p/>
+	 * This method is invoked when a GET is made to /Groups/{id}
+	 *
+	 * @param id the Id of the SCIM group
+	 * @return the group corresponding to the id
+	 * @throws com.okta.scim.server.exception.OnPremUserManagementException
+	 *
+	 */
 	public SCIMGroup getGroup(String id) throws OnPremUserManagementException {
 		SCIMGroup group = groupMap.get(id);
 		if (group != null) {
@@ -571,6 +745,14 @@ public class SCIMServiceImpl implements SCIMService {
 		}
 	}
 
+	/**
+	 * Delete a particular group.
+	 * <p/>
+	 * This method is invoked when a DELETE is made to /Groups/{id}
+	 *
+	 * @param id the Id of the SCIM group
+	 * @throws OnPremUserManagementException
+	 */
 	public void deleteGroup(String id) throws OnPremUserManagementException, EntityNotFoundException {
 		if (groupMap.containsKey(id)) {
 			LOGGER.debug("[deleteGroup] Deleting group: " + id);
@@ -588,10 +770,28 @@ public class SCIMServiceImpl implements SCIMService {
 		}
 	}
 
+	/**
+	 * Get all the Okta User Management capabilities that this SCIM Service has implemented.
+	 * <p/>
+	 * This method is invoked when a GET is made to /ServiceProviderConfigs. It is called only when you are testing
+	 * or modifying your connector configuration from the Okta Application instance UM UI. If you change the return values
+	 * at a later time please re-test and re-save your connector settings to have your new return values respected.
+	 * <p/>
+	 * These User Management capabilities help customize the UI features available to your app instance and tells Okta
+	 * all the possible commands that can be sent to your connector.
+	 *
+	 * @return all the implemented User Management capabilities.
+	 */
 	public UserManagementCapabilities[] getImplementedUserManagementCapabilities() {
 		return UserManagementCapabilities.values();
 	}
 
+	/**
+	 * Generate the next if for a resource
+	 *
+	 * @param resourceType
+	 * @return
+	 */
 	private String generateNextId(String resourceType) {
 		if (useFilePersistence) {
 			return UUID.randomUUID().toString();
@@ -605,6 +805,19 @@ public class SCIMServiceImpl implements SCIMService {
 		return null;
 	}
 
+/********************************************************************
+ ******************** Private helpers not in skeleton ***************
+ *********************************************************************
+ **/
+	/**
+	 * Constructs Attributes from a SCIMUser object. Only deals with base attributes,
+	 * calls constructCustomAttrsFromUser to add custom values to Attributes.
+	 * Uses mappings for custom attributes from properties file.
+	 *
+	 * @param user - SCIMUser object to pull values from
+	 * @return fully built Attributes Object
+	 * @throws InvalidDataTypeException
+	 */
 	private Attributes constructAttrsFromUser(SCIMUser user) throws InvalidDataTypeException {
 		String[] keys = ldapUserCore.keySet().toArray(new String[ldapUserCore.size()]);
 		String active = user.isActive() ? "active" : "inactive";
@@ -614,6 +827,8 @@ public class SCIMServiceImpl implements SCIMService {
 		Attribute attr;
 		for(int i = 0; i < ldapUserClass.length; i++) objclass.add(ldapUserClass[i]);
 		//TODO: fix this, this is ugly
+		//For each of the base attribute mappings in properties file, pull the value from user and
+		//add it to the attribute object.
 		for(int i = 0; i < keys.length; i++) {
 			String attrType = ldapUserCore.get(keys[i]);
 			attr = new BasicAttribute(attrType);
@@ -646,6 +861,7 @@ public class SCIMServiceImpl implements SCIMService {
 		Attribute phoneNumsAttr = attrs.get(ldapUserCore.get("phoneNumbers"));
 		Attribute emailsAttr = new BasicAttribute(ldapUserCore.get("emails"));
 //		try{
+			//Special cases for attributes that are not simple values
 			if(user.getPassword() != null) {
 				//passwd.add(hashPassword(user.getPassword()));
 				passwd.add(user.getPassword());
@@ -674,6 +890,15 @@ public class SCIMServiceImpl implements SCIMService {
 		return constructCustomAttrsFromUser(user, attrs);
 	}
 
+	/**
+	 * Adds Attribute objs to supplied attrs made from SCIMUser object.
+	 * Uses mappings for custom attributes from properties file.
+	 *
+	 * @param user - SCIMUser object to pull values from
+	 * @param attrs - Attributes to add to SCIMUser object
+	 * @return fully built Attributes Object
+	 * @throws InvalidDataTypeException
+	 */
 	private Attributes constructCustomAttrsFromUser(SCIMUser user, Attributes attrs) throws InvalidDataTypeException {
 		String[] keys = ldapUserCustom.keySet().toArray(new String[ldapUserCustom.size()]);
 		String[] configLine;
@@ -681,6 +906,7 @@ public class SCIMServiceImpl implements SCIMService {
 		String[] parentNames = emptyArr;
 		Attribute customAttr;
 		Object value = "";
+		//For each custom attribute mapping in properties, get the appropriate custom value and put it in an Attribute obj
 		for(int i = 0; i < keys.length; i++) {
 			configLine = ldapUserCustom.get(keys[i]);
 			parentNames = emptyArr;
@@ -715,7 +941,17 @@ public class SCIMServiceImpl implements SCIMService {
 		return attrs;
 	}
 
+	/**
+	 * Pulls values for base user attributes from Attributes obj and sets it in SCIMUser obj.
+	 * Calls constructUserFromCustomAttrs to handle custom attributes.
+	 * Mappings obtained from properties file.
+	 *
+	 * @param attrs - Attributes to add to SCIMUser object
+	 * @return fully built SCIMUser object
+	 * @throws NamingException
+	 */
 	private SCIMUser constructUserFromAttrs(Attributes attrs) throws NamingException {
+		//create objects, pull in values from attrs using mapping from properties file.
 		SCIMUser user = new SCIMUser();
 //		try {
 			String formattedNameLookup = ldapUserCore.get("formatted");
@@ -745,6 +981,7 @@ public class SCIMServiceImpl implements SCIMService {
 			user.setId(id);
 			user.setActive(true);
 //			user.setPassword(passwd);
+//			//for each phone number, parse line from attrs and build PhoneNumber obj
 			if(phoneNumsAttr != null) {
 				for(int i = 0; i < phoneNumsAttr.size(); i++) {
 					String phoneNum = phoneNumsAttr.get(i).toString();
@@ -760,6 +997,7 @@ public class SCIMServiceImpl implements SCIMService {
 				}
 				user.setPhoneNumbers(phoneNums);
 			}
+			//same for emails, TODO: can probably do this better
 			if(emailsAttr != null) {
 				for(int i = 0; i < emailsAttr.size(); i++) {
 					String email = emailsAttr.get(i).toString();
@@ -783,6 +1021,15 @@ public class SCIMServiceImpl implements SCIMService {
 		return constructUserFromCustomAttrs(user, attrs);
 	}
 
+	/**
+	 * Adds custom Attributes to given SCIMUser object. Pulls mapping for custom attrs from
+	 * properties file.
+	 *
+	 * @param user - SCIMUser object to add custom attributes to.
+	 * @param attrs - Attributes to add to SCIMUser object
+	 * @return fully built SCIMUser object
+	 * @throws NamingException
+	 */
 	private SCIMUser constructUserFromCustomAttrs(SCIMUser user, Attributes attrs) throws NamingException {
 		String[] keys = ldapUserCustom.keySet().toArray(new String[ldapUserCustom.size()]);
 		String[] configLine;
@@ -790,6 +1037,7 @@ public class SCIMServiceImpl implements SCIMService {
 		String[] parentNames = emptyArr;
 		Attribute customAttr;
 		Object value = "";
+		//Iterates through all mapped custom attrs from properties file and sets value in user obj.
 		for(int i = 0; i < keys.length; i++) {
 			configLine = ldapUserCustom.get(keys[i]);
 			parentNames = emptyArr;
@@ -800,6 +1048,7 @@ public class SCIMServiceImpl implements SCIMService {
 				value = customAttr.get();
 				//LOGGER.debug(value);
 				//TODO: make this better
+				//set type for value pulled from Attributes
 				if(configLine[0].equals("int"))
 					user.setCustomIntValue(configLine[1], configLine[2], Integer.parseInt(value.toString()), parentNames);
 				else if(configLine[0].equals("boolean"))
@@ -819,14 +1068,19 @@ public class SCIMServiceImpl implements SCIMService {
 		return user;
 	}
 
-	//NOTE: if you don't select the delete in app option when deleting a pushed group
-	//Okta will remember the id of the group.
+	/**
+	 * Builds the Attributes object to insert into LDAP, uses mappings pulled from
+	 * properties file.
+	 *
+	 * @param group - SCIMGroup object to build Attributes object from.
+	 * @return Attributes object that resulted from SCIMGroup object
+	 */
 	private Attributes constructAttrsFromGroup(SCIMGroup group) {
 		Attributes attrs = new BasicAttributes(true);
 		String[] keys = ldapGroupCore.keySet().toArray(new String[ldapGroupCore.size()]);
 		Attribute attr;
 		Object value;
-		LOGGER.info("[constructAttrsFromGroup] constructing Attrs from group");
+		LOGGER.info("[constructAttrsFromGroup] constructing Attrs from group " + group.getDisplayName());
 //		try {
 			Attribute objclass = new BasicAttribute("objectClass");
 			for(int i = 0; i < ldapGroupClass.length; i++) objclass.add(ldapGroupClass[i]);
@@ -838,27 +1092,21 @@ public class SCIMServiceImpl implements SCIMService {
 				} else if(keys[i].equals("members") && (group.getMembers() != null)) {
 					attrs.put(attr);
 					continue;
-				} else if(keys[i].equals("testMembers") && (group.getMembers() != null)) {
-					attrs.put(attr);
-					continue;
 				} else {
 					continue;
 				}
 				attr.add(value.toString());
 				attrs.put(attr);
 			}
-			//Attribute gidNum = new BasicAttribute("gidNumber", "5000");
-			//Attribute memAttr = attrs.get(ldapGroupCore.get("members"));
-			Attribute member = attrs.get(ldapGroupCore.get("testMembers"));
+			Attribute member = attrs.get(ldapGroupCore.get("members"));
 			attrs.put(objclass);
-			//attrs.put(gidNum);
+			//builds dn from all members, assumes the members are located in the same area as users.
 			if(group.getMembers() != null ) {
 				Object[] members = group.getMembers().toArray();
 				for(int i = 0; i < members.length; i++) {
 					Membership mem = (Membership) members[i];
 					String name = ldapUserPre + mem.getDisplayName() + "," + ldapUserDn + ldapBaseDn;
 					DistinguishedName dn = new DistinguishedName(name);
-					//memAttr.add(mem.getId()+ "|"+ mem.getDisplayName());
 					member.add(dn.encode());
 				}
 			}
@@ -869,7 +1117,16 @@ public class SCIMServiceImpl implements SCIMService {
 		return attrs;
 	}
 
+	/**
+	 * Helper function that constructs a SCIMGroup object from Attributes
+	 * fetched from Ldap. Uses mappings from properties file to set fields in SCIMGroup obj.
+	 *
+	 * @param attrs - attributes to build SCIMGroup
+	 * @return the SCIMGroup object that the attrs created
+	 * @throws NamingException
+	 */
 	private SCIMGroup constructGroupFromAttrs(Attributes attrs) throws NamingException {
+		//create objs/get mappings from config file.
 		List<SCIMUser> result;
 		SCIMGroup group = new SCIMGroup();
 		SCIMFilter filter = new SCIMFilter();
@@ -880,8 +1137,9 @@ public class SCIMServiceImpl implements SCIMService {
 		filter.setFilterAttribute(filterAttr);
 //		try {
 			String cn = attrs.get("cn").get().toString();
+			LOGGER.debug("[constructGroupFromAttrs] Constructing Group " + cn + " from Attrs.");
 			ArrayList<Membership> memberList = new ArrayList<Membership>();
-			String memberAttrLookup = ldapGroupCore.get("testMembers");
+			String memberAttrLookup = ldapGroupCore.get("members");
 			Attribute memberAttr = attrs.get(memberAttrLookup);
 			String idLookup = ldapGroupCore.get("id");
 			String id = attrs.get(idLookup).get().toString();
@@ -893,6 +1151,7 @@ public class SCIMServiceImpl implements SCIMService {
 					DistinguishedName dn = new DistinguishedName(memberDn);
 					LdapRdn memberCn = dn.getLdapRdn("cn");
 					filter.setFilterValue(memberCn.getValue());
+					//searches through cache to retrieve ids for group memebers,used in SCIMGroup
 					result = getUsersByEqualityFilter(filter);
 					if(result.size() == 1) {
 						SCIMUser resultUser = result.get(0);
@@ -909,6 +1168,14 @@ public class SCIMServiceImpl implements SCIMService {
 		return group;
 	}
 
+	/**
+	 * Helper function, uses MessageDigest to hash with SHA, not actually used for us.
+	 *
+	 * @param password - the password to hash
+	 * @return the result of the hash base 64 encoded
+	 * @throws NoSuchAlgorithmException
+	 * @throws UnsupportedEncodingException
+	 */
 	private String hashPassword(String password) throws NoSuchAlgorithmException, UnsupportedEncodingException {
 		MessageDigest digest = MessageDigest.getInstance("SHA");
 		digest.update(password.getBytes("UTF8"));
@@ -917,6 +1184,14 @@ public class SCIMServiceImpl implements SCIMService {
 		return "{SHA}" + shaPassword;
 	}
 
+	/**
+	 * Helper function that checks if delimiter exists in string before splitting it.
+	 * Probably not super necessary.
+	 *
+	 * @param s - string to split
+	 * @param delim - delimiter to split on
+	 * @return result of split operation.
+	 */
 	private String[] splitString(String s, String delim) throws OnPremUserManagementException{
 		if(s.contains(delim)) {
 			String[] sParts = s.split(Pattern.quote(delim));//split uses regex, contains uses string literals
@@ -927,6 +1202,12 @@ public class SCIMServiceImpl implements SCIMService {
 		}
 	}
 
+	/**
+	 * Helper function to print stack trace to logger.
+	 *
+	 * @param e - exception to print
+	 * @return
+	 */
 	private void handleGeneralException(Exception e) {
 		StringWriter errors = new StringWriter();
 		e.printStackTrace(new PrintWriter(errors));
