@@ -1,5 +1,5 @@
 # opp-ldap
-Okta OPP (On Premises Provisioning) connector to LDAP
+Okta OPP (On Premises Provisioning) connector to LDAP. Big Thanks to ayee@okta.com for writing most of the setup documentation.
 
 ## Background on OPP
 * [On Premises Provisioning Deployment Guide](https://support.okta.com/articles/Knowledge_Article/46749316-On-Premises-Provisioning-Deployment-Guide)
@@ -7,8 +7,7 @@ Okta OPP (On Premises Provisioning) connector to LDAP
 * [Okta Delivers New Services That Open and Extend its Enterprise Identity Network to Connect Every Application, Device and Person Across Enterprises](https://www.okta.com/company/pr-2013-11-04.html) - November 4th, 2013
 
 ## Setup
-Big Thanks to ayee@okta.com for writing most of the setup documentation.
-This is just a quick setup guide. The testing environment was on CentOS. More thorough instructions can be found:
+This is just a quick setup guide. The testing environment was on CentOS and RHEL. More thorough instructions can be found:
 
 Installing and Configuring  the OPA:
 - https://support.okta.com/entries/29448976-Configuring-On-Premises-Provisioning#installing
@@ -87,8 +86,8 @@ During development, the connector was hosted on Tomcat and used Maven to build t
 ####Build Example Connector
 1. cd to <SDK root directory>/lib where the scim-server-sdk.jar file is
 2. Install it locally
-	- mvn install:install-file -Dfile=../lib/scim-server-sdk-01.01.00.jar -DgroupId=com.okta.scim.sdk -DartifactId=scim-server-sdk -Dpackaging=jar -Dversion=01.01.00
-	- Note: the command above is for SDK version 01.01.00; modify as necessary
+	- mvn install:install-file -Dfile=../lib/scim-server-sdk-01.02.00.jar -DgroupId=com.okta.scim.sdk -DartifactId=scim-server-sdk -Dpackaging=jar -Dversion=01.02.00
+	- Note: the command above is for SDK version 01.02.00; modify as necessary
 3. Build the LDAP connector
 	- Note: you must be in the same directory as the pom.xml file
 		- cd to <SDK root directory>/example-mysql-server/
@@ -126,7 +125,13 @@ During development, the connector was hosted on Tomcat and used Maven to build t
 8. Check the agent.log under OPA/logs folder to see command activity from the Okta service
 
 ###Other Notes:
-
+####Enabling Basic Auth
+1. Add the role and user to your tomcat-users.xml file, which was located /usr/share/tomcat/conf/ in my testing environment.
+	- Note the connector was configured to user the rolename "member", you can edit this in opp-ldap/Okta-Provisioning-Connector-SDK/example-server/src/main/webapp/WEB-INF/web.xml
+'''XML
+<role rolename="member"/>
+<user username="scim" password="test" roles="member" />
+'''
 
 ## Disclaimer & License
 Please be aware that all material published under the [OktaIT](https://github.com/OktaIT/) project have been written by the [Okta](http://www.okta.com/) IT Department but are **NOT OFFICAL** software release of Okta Inc.  As such, the software is provided "as is" without warranty or customer support of any kind.
