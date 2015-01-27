@@ -11,6 +11,7 @@ This is just a quick setup guide. More thorough instructions can be found:
 
 Installing and Configuring  the OPA:
 - https://support.okta.com/entries/29448976-Configuring-On-Premises-Provisioning#installing
+
 More info:
 - https://support.okta.com/entries/46749316-On-Premises-Provisioning-Deployment-Guide
 
@@ -46,7 +47,6 @@ You can use whatever implementation of the LDAP you want. This connector was dev
 During development, the connector was hosted on Tomcat and used Maven to build the war. So those two packages will need to be installed,
 
 ####Install Java (required to install Tomcat)
-Tomcat only needs the JRE, but Maven needs the JDK to compile the connector in subsequent steps. Therefore, download the JDK, which includes the JRE.
 1. Install
 	- sudo yum install java-1.7.0-openjdk-devel
 2. Set the JAVA_HOME environment variable (required for Apache Maven)
