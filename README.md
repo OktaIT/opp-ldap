@@ -133,6 +133,7 @@ During development, the connector was hosted on Tomcat and used Maven to build t
 		<user username="scim" password="test" roles="member" />
 ```
 2. In the provisioning tab of the app, select Basic Auth for the Authorization type and enter the Basic Auth credentials.
+
 ####Enabling HTTPS
 More detailed instructions can be found opp-ldap/Okta-Provisioning-Connector-SDK/example-server/README.txt.
 - Note: This will only outline how to enable HTTPS with a self signed cert.If you wish to have better security
