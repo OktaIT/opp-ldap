@@ -8,7 +8,32 @@ Okta OPP (On Premises Provisioning) connector to LDAP
 
 ## Setup
 ### LDAP
-### OPP
+You can use whatever implementation of the LDAP you want. This connector was developed using OpenLDAP, but as long as the connector is configured properly, everything should work. More on the configuration later.
+### OPA
+1. wget https://democorpx.okta-admin.com/static/agents/ProvisioningAgent/OktaProvisioningAgent-01.00.01.x86_64.rpm
+2. Installation instructions (detailed): a. https://support.okta.com/entries/29448976-Configuring-On-Premises-Provisioning#InstallingOPP
+3. Installation instructions (brief)
+	a. sudo yum localinstall OktaProvisioningAgent-01.00.01.x86_64.rpm
+	b. /opt/OktaProvisioningAgent/configure_agent.sh
+	c. Enter subdomain
+		i. If connecting to a production Okta org, enter subdomain (ie: myorg) ii. If connecting to preview, enter full URL (ie: https://myorg.oktapreview.com)
+	d. service OktaProvisioningAgent start
+	e. service OktaProvisioningAgent status
+	f. If the service errors out with message “dead but subsys locked", remove the lock file
+		i. cd /var/lock/subsys
+		ii. rm OktaProvisioningAgent
+		iii. Then restart the service and check again
+	g. To make the OktaProvisioningAgent a service that starts on boot:
+		i. Get name of service’s script from /etc/init.d/ directory (ie: OktaProvisioningAgent)
+		ii. Add it to chkconfig
+			1. sudo chkconfig --add OktaProvisioningAgent
+		iii. Make sure it is in the chkconfig.
+			1. sudo chkconfig --list OktaProvisioningAgent
+		iv. Set it to autostart
+			1. sudo chkconfig OktaProvisioningAgent on
+		v. To stop a service from auto starting on boot
+			1. sudo chkconfig OktaProvisioningAgent off
+4. Log files are located in /opt/OktaProvisioningAgent/logs
 ### Connector
 ### Okta side
 
