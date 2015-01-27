@@ -89,16 +89,44 @@ During development, the connector was hosted on Tomcat and used Maven to build t
 2. Install it locally
 	- mvn install:install-file -Dfile=../lib/scim-server-sdk-01.01.00.jar -DgroupId=com.okta.scim.sdk -DartifactId=scim-server-sdk -Dpackaging=jar -Dversion=01.01.00
 	- Note: the command above is for SDK version 01.01.00; modify as necessary
-3. Edit dispatcher-servlet.xml
-	- Located in <SDK root directory>/example-mysql-server/src/main/webapp/WEB-INF/
-4. Modify the MySql connection string properties (server name, port, etc.) that are part of the MySqlSCIMServiceImpl bean.
-5. Build the MySQL example connector
+3. Build the LDAP connector
 	- Note: you must be in the same directory as the pom.xml file
 		- cd to <SDK root directory>/example-mysql-server/
 	- Note: you must run mvn package as the same user who installed the SDK (step 2)
 	- mvn package
 
+####Deploy Example Connector
+- Copy the target/scim-server-example-01.02.00-SNAPSHOT.war to your Tomcat webapps directory.
+- cp /opt/Okta-Provisioning-Connector-SDK/example-server-mysql-server/target/scim-server-example-01.02.00-SNAPSHOT.war /usr/share/tomcat6/webapps
+- Note: the command above is for SDK version 01.02.00; modify as necessary.
+
+####Verify Successful Deployment of Connector
+1. Navigate to http://localhost:8080/manager/html and login
+	- This assumes you’ve setup a user with the “manager” role in the conf/tomcat-user.xml file
+	- ie: <user username="tomcat" password="s3cret" roles="manager"/>
+2. Find the SCIM connector app and verify that it is running (look for “true” in the Running column)
+3. If it did not start, view the Tomcat log files under /usr/share/tomcat6/logs
+	- scim-mysql-connector-example.log
+
 ### Okta side
+####Connect to Okta Service and Test
+1. Login to Okta as an admin and either create or navigate to your app named “onprem_app”
+2. General tab > select “Enable on-premises user management configuration”
+3. Provisioning tab appears
+4. Navigate to the Provisioning tab and configure the following:
+	- SCIM Connector base URL: http://localhost:8080/scim-mysql-connector-example-01.01.00-SNAPSHOT
+		- Note: the info above is for SDK version 01.01.00; modify as necessary
+	- Authorization type: None
+	- Unique user field name: userName
+	- Connect to these agents: select the agent you installed
+5. Click Test Connector Configuration
+	- Should show success and the functions that are supported
+7. Assign the application to a user or a group
+	- Check whether the user was created
+8. Check the agent.log under OPA/logs folder to see command activity from the Okta service
+
+###Other Notes:
+
 
 ## Disclaimer & License
 Please be aware that all material published under the [OktaIT](https://github.com/OktaIT/) project have been written by the [Okta](http://www.okta.com/) IT Department but are **NOT OFFICAL** software release of Okta Inc.  As such, the software is provided "as is" without warranty or customer support of any kind.
