@@ -69,12 +69,20 @@ During development, the connector was hosted on Tomcat and used Maven to build t
 2. sudo tar xzf apache-maven-3.1.1-bin.tar.gz -C /usr/local
 3. cd /usr/local
 4. Set the following environment variables (add lines to the user’s profile in .bashrc)
-- export M2_HOME="/usr/local/apache-maven-3.1.1"
-- export M2=$M2_HOME/bin
-- export PATH=$M2:$PATH
+	- export M2_HOME="/usr/local/apache-maven-3.1.1"
+	- export M2=$M2_HOME/bin
+	- export PATH=$M2:$PATH
 5. Log out and log back in
 6. Test Maven install by viewing environment variables:
-- mvn -version
+	- mvn -version
+
+####Install Okta Provisioning Connector SDK
+1. Download the Okta Provisioning Connector SDK
+	- Login to Okta as an admin
+	- Find the file at Settings > Downloads > Admin Downloads
+2. Extract to /opt/Okta-Provisioning-Connector-SDK/
+	- Going forward, this will be called the <SDK root directory>
+3. Grant read/write permissions to /opt to your user if you’re building the example connector as a non root user
 
 ### Okta side
 
