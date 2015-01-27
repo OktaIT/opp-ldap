@@ -128,10 +128,10 @@ During development, the connector was hosted on Tomcat and used Maven to build t
 ####Enabling Basic Auth
 1. Add the role and user to your tomcat-users.xml file, which was located /usr/share/tomcat/conf/ in my testing environment.
 	- Note the connector was configured to user the rolename "member", you can edit this in opp-ldap/Okta-Provisioning-Connector-SDK/example-server/src/main/webapp/WEB-INF/web.xml
-'''XML
+```XML
 <role rolename="member"/>
 <user username="scim" password="test" roles="member" />
-'''
+```
 
 ## Disclaimer & License
 Please be aware that all material published under the [OktaIT](https://github.com/OktaIT/) project have been written by the [Okta](http://www.okta.com/) IT Department but are **NOT OFFICAL** software release of Okta Inc.  As such, the software is provided "as is" without warranty or customer support of any kind.
