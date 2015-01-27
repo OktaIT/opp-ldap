@@ -15,6 +15,7 @@ import com.okta.scim.util.model.PaginationProperties;
 import com.okta.scim.util.model.SCIMFilter;
 import com.okta.scim.util.model.SCIMFilterAttribute;
 import com.okta.scim.util.model.SCIMFilterType;
+import com.okta.scim.util.model.SCIMResource;
 import com.okta.scim.util.model.SCIMGroup;
 import com.okta.scim.util.model.SCIMGroupQueryResponse;
 import com.okta.scim.util.model.SCIMUser;
@@ -94,6 +95,7 @@ public class SCIMServiceImpl implements SCIMService {
 	private Map<String, String> ldapUserCore = new HashMap<String, String>();
 	private Map<String, String[]> ldapUserCustom = new HashMap<String, String[]>();
 	private Map<String, String> ldapGroupCore = new HashMap<String, String>();
+	private Map<String, String[]> ldapGroupCustom = new HashMap<String, String[]>();
 	private String USER_RESOURCE = "user";
 	private String GROUP_RESOURCE = "group";
 	//Field names for the custom properties
@@ -137,16 +139,20 @@ public class SCIMServiceImpl implements SCIMService {
 	 * @throws ConfigurationException
 	 */
 	private void initLdapVars() throws ConfigurationException {
+		//TODO: Clean this up, can be nicer
 		Configuration config;
 		String[] userCoreMapHolder;
 		String[] userCustomMapHolder;
 		String[] groupCoreMapHolder;
+		String[] groupCustomMapHolder;
 		Iterator<String> userCustomIt;
 		Iterator<String> userCoreIt;
 		Iterator<String> groupCoreIt;
+		Iterator<String> groupCustomIt;
 		String customKey;
 		String coreKey;
 		String groupCoreKey;
+		String groupCustomKey;
 		try {
 			config = new PropertiesConfiguration(CONF_FILENAME);
 			ldapBaseDn = config.getString("ldap.baseDn");
@@ -166,6 +172,7 @@ public class SCIMServiceImpl implements SCIMService {
 			userCustomIt = config.getKeys("OPP.userCustomMap");
 			userCoreIt = config.getKeys("OPP.userCoreMap");
 			groupCoreIt = config.getKeys("OPP.groupCoreMap");
+			groupCustomIt = config.getKeys("OPP.groupCustomMap");
 			while(userCustomIt.hasNext()) {
 				customKey = userCustomIt.next();
 				userCustomMapHolder = config.getStringArray(customKey);
@@ -180,6 +187,13 @@ public class SCIMServiceImpl implements SCIMService {
 				groupCoreKey = groupCoreIt.next();
 				groupCoreMapHolder = config.getStringArray(groupCoreKey);
 				ldapGroupCore.put(groupCoreMapHolder[0].trim(), groupCoreMapHolder[1].trim());
+			}
+			while(groupCustomIt.hasNext()) {
+				groupCustomKey = groupCustomIt.next();
+				groupCustomMapHolder = config.getStringArray(groupCustomKey);
+				LOGGER.debug(Arrays.toString(groupCustomMapHolder));
+				LOGGER.debug(Arrays.toString(Arrays.copyOfRange(groupCustomMapHolder, 1, groupCustomMapHolder. length)));
+				ldapGroupCustom.put(groupCustomMapHolder[0].trim(), Arrays.copyOfRange(groupCustomMapHolder, 1, groupCustomMapHolder.length));
 			}
 		} catch (ConfigurationException e) {
 			handleGeneralException(e);
@@ -626,7 +640,7 @@ public class SCIMServiceImpl implements SCIMService {
 			ctx.createSubcontext(ldapGroupPre + group.getDisplayName() + "," + ldapGroupDn + ldapBaseDn, attrs);
 			ctx.close();
 			LOGGER.info("[createGroup] Group " + group.getDisplayName() + " successfully created.");
-		} catch (NamingException e) {
+		} catch (InvalidDataTypeException | NamingException e) {
 			handleGeneralException(e);
 			throw new OnPremUserManagementException("o01234", e.getMessage(), e);
 		}
@@ -846,6 +860,8 @@ public class SCIMServiceImpl implements SCIMService {
 		if(user.getPassword() != null) {
 			//passwd.add(hashPassword(user.getPassword()));
 			passwd.add(user.getPassword());
+			//scrub the passwd, so it's not stored in plaintext in cache.
+			user.setPassword("");
 		}
 		if(user.getPhoneNumbers() != null) {
 			Object[] phoneNums = user.getPhoneNumbers().toArray();
@@ -876,8 +892,12 @@ public class SCIMServiceImpl implements SCIMService {
 	 * @return fully built Attributes Object
 	 * @throws InvalidDataTypeException
 	 */
-	private Attributes constructCustomAttrsFromUser(SCIMUser user, Attributes attrs) throws InvalidDataTypeException {
-		String[] keys = ldapUserCustom.keySet().toArray(new String[ldapUserCustom.size()]);
+	private Attributes constructCustomAttrsFromUser(SCIMResource user, Attributes attrs) throws InvalidDataTypeException {
+		String[] keys = {};
+		LOGGER.debug(user instanceof SCIMGroup);
+		if(user instanceof SCIMUser) keys = ldapUserCustom.keySet().toArray(new String[ldapUserCustom.size()]);
+		else if(user instanceof SCIMGroup) keys = ldapGroupCustom.keySet().toArray(new String[ldapGroupCustom.size()]);
+		LOGGER.debug(Arrays.toString(keys));
 		String[] configLine;
 		String[] emptyArr = new String[0];
 		String[] parentNames = emptyArr;
@@ -886,6 +906,7 @@ public class SCIMServiceImpl implements SCIMService {
 		//For each custom attribute mapping in properties, get the appropriate custom value and put it in an Attribute obj
 		for(int i = 0; i < keys.length; i++) {
 			configLine = ldapUserCustom.get(keys[i]);
+			LOGGER.debug(Arrays.toString(configLine));
 			parentNames = emptyArr;
 			if(configLine.length > 3) parentNames = Arrays.copyOfRange(configLine, 3, configLine.length);
 			customAttr = new BasicAttribute(keys[i]);
@@ -903,7 +924,7 @@ public class SCIMServiceImpl implements SCIMService {
 				customAttr.add(value.toString());
 				attrs.put(customAttr);
 			} else {
-				throw new OnPremUserManagementException("o12345", "Custom Attr: " + Arrays.toString(configLine) + " was null for SCIMUser: " + user.getUserName());
+				throw new OnPremUserManagementException("o12345", "Custom Attr: " + Arrays.toString(configLine) + " was null.");
 			}
 		}
 		return attrs;
@@ -973,7 +994,7 @@ public class SCIMServiceImpl implements SCIMService {
 			}
 			user.setEmails(emails);
 		}
-		return constructUserFromCustomAttrs(user, attrs);
+		return ((SCIMUser) constructUserFromCustomAttrs(user, attrs));
 	}
 
 	/**
@@ -985,7 +1006,7 @@ public class SCIMServiceImpl implements SCIMService {
 	 * @return fully built SCIMUser object
 	 * @throws NamingException
 	 */
-	private SCIMUser constructUserFromCustomAttrs(SCIMUser user, Attributes attrs) throws NamingException {
+	private SCIMResource constructUserFromCustomAttrs(SCIMResource user, Attributes attrs) throws NamingException {
 		String[] keys = ldapUserCustom.keySet().toArray(new String[ldapUserCustom.size()]);
 		String[] configLine;
 		String[] emptyArr = new String[0];
@@ -1023,7 +1044,7 @@ public class SCIMServiceImpl implements SCIMService {
 	 * @param group - SCIMGroup object to build Attributes object from.
 	 * @return Attributes object that resulted from SCIMGroup object
 	 */
-	private Attributes constructAttrsFromGroup(SCIMGroup group) {
+	private Attributes constructAttrsFromGroup(SCIMGroup group) throws InvalidDataTypeException {
 		Attributes attrs = new BasicAttributes(true);
 		String[] keys = ldapGroupCore.keySet().toArray(new String[ldapGroupCore.size()]);
 		Attribute attr;
@@ -1057,7 +1078,7 @@ public class SCIMServiceImpl implements SCIMService {
 				member.add(dn.encode());
 			}
 		}
-		return attrs;
+		return constructCustomAttrsFromUser(group, attrs);
 	}
 
 	/**
