@@ -7,7 +7,8 @@ Okta OPP (On Premises Provisioning) connector to LDAP
 * [Okta Delivers New Services That Open and Extend its Enterprise Identity Network to Connect Every Application, Device and Person Across Enterprises](https://www.okta.com/company/pr-2013-11-04.html) - November 4th, 2013
 
 ## Setup
-This is just a quick setup guide. More thorough instructions can be found:
+Big Thanks to ayee@okta.com for writing most of the setup documentation.
+This is just a quick setup guide. The testing environment was on CentOS. More thorough instructions can be found:
 
 Installing and Configuring  the OPA:
 - https://support.okta.com/entries/29448976-Configuring-On-Premises-Provisioning#installing
@@ -44,9 +45,9 @@ You can use whatever implementation of the LDAP you want. This connector was dev
 4. Log files are located in /opt/OktaProvisioningAgent/logs
 
 ### Connector
-During development, the connector was hosted on Tomcat and used Maven to build the war. So those two packages will need to be installed,
+During development, the connector was hosted on Tomcat and used Maven to build the war. So those two packages (and Java) will need to be installed,
 
-####Install Java (required to install Tomcat)
+####Install Java (required to install Tomcat and Maven)
 1. Install
 	- sudo yum install java-1.7.0-openjdk-devel
 2. Set the JAVA_HOME environment variable (required for Apache Maven)
@@ -62,6 +63,18 @@ During development, the connector was hosted on Tomcat and used Maven to build t
 	- sudo chkconfig tomcat6 on
 3. Start service
 	- sudo service tomcat6 start
+
+####Install Maven (default location: /usr/local/apache-maven-3.1.1)
+1. wget http://mirror.cc.columbia.edu/pub/software/apache/maven/maven-3/3.1.1/binaries/apache-maven-3.1.1-bin.tar.gz
+2. sudo tar xzf apache-maven-3.1.1-bin.tar.gz -C /usr/local
+3. cd /usr/local
+4. Set the following environment variables (add lines to the user’s profile in .bashrc)
+- export M2_HOME="/usr/local/apache-maven-3.1.1"
+- export M2=$M2_HOME/bin
+- export PATH=$M2:$PATH
+5. Log out and log back in
+6. Test Maven install by viewing environment variables:
+- mvn -version
 
 ### Okta side
 
