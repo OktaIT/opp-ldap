@@ -7,6 +7,12 @@ Okta OPP (On Premises Provisioning) connector to LDAP
 * [Okta Delivers New Services That Open and Extend its Enterprise Identity Network to Connect Every Application, Device and Person Across Enterprises](https://www.okta.com/company/pr-2013-11-04.html) - November 4th, 2013
 
 ## Setup
+This is just a quick setup guide. More thorough instructions can be found:
+Installing and Configuring  the OPA:
+- https://support.okta.com/entries/29448976-Configuring-On-Premises-Provisioning#installing
+More info:
+- https://support.okta.com/entries/46749316-On-Premises-Provisioning-Deployment-Guide
+
 ### LDAP
 You can use whatever implementation of the LDAP you want. This connector was developed using OpenLDAP, but as long as the connector is configured properly, everything should work. More on the configuration later.
 ### OPA
@@ -36,6 +42,24 @@ You can use whatever implementation of the LDAP you want. This connector was dev
 4. Log files are located in /opt/OktaProvisioningAgent/logs
 
 ### Connector
+During development, the connector was hosted on Tomcat and used Maven to build the war. So those two packages will need to be installed,
+##Install Java (required to install Tomcat)
+Tomcat only needs the JRE, but Maven needs the JDK to compile the connector in subsequent steps. Therefore, download the JDK, which includes the JRE.
+1. Install
+	- sudo yum install java-1.7.0-openjdk-devel
+2. Set the JAVA_HOME environment variable (required for Apache Maven)
+	- Determine the correct value for JAVA_HOME. CentOS installs OpenJDK 1.7 into either /usr/lib/jvm/java-1.7.0-openjdk-1.7.0.0/ or /usr/lib/jvm/java-1.7.0-openjdk-1.7.0.0.x86_64/, depending on whether your system is a 32-bit or 64-bit architecture. The JAVA_HOME should point to the directory containing a bin/java executable.
+	- As the user who will use OpenJDK, open the shell configuration file. For the Bash shell, this file is /home/username/.bashrc.
+	- At the bottom of the file, type the following line, replacing the hypothetical path with the actual path to use on your own system: export JAVA_HOME="/path/to/java/home"
+	- Save the file, and log out of and back into your session.
+##Install Tomcat (default location: /usr/share/tomcat6)
+1. Run to install:
+	- sudo yum install tomcat6 tomcat6-webapps tomcat6-admin-webapps
+2. Configure Tomcat to start as a service
+	- sudo chkconfig tomcat6 on
+3. Start service
+	- sudo service tomcat6 start
+
 ### Okta side
 
 ## Disclaimer & License
