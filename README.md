@@ -140,28 +140,28 @@ More detailed instructions can be found opp-ldap/Okta-Provisioning-Connector-SDK
 and use certificates signed by trusted third-parties, you can follow the last step (5) below to import such a certificate
 into the trust store of the Okta Provisioning Agent.
 1. Generate a key.
-```Shell
-	keytool -genkey -alias scim_tom -keyalg RSA -keystore /root/scim_tomcat_keystore
-```
+	```Shell
+		keytool -genkey -alias scim_tom -keyalg RSA -keystore /root/scim_tomcat_keystore
+	```
 	- Note: Be mindful of where you store your keystore, the tomcat user needs to be able to see the keystore.
 2. Go to $TOMCAT_HOME/conf/server.xml and enable SSL - Use the configuration below which asks Tomcat
 to use the keystore /root/scim_tomcat_keystore (Generated above)
-```XML
-	<Connector port="8443" protocol="HTTP/1.1" SSLEnabled="true"
-		maxThreads="150" scheme="https" secure="true"
-		clientAuth="false" sslProtocol="TLS"
-		keystoreFile="/root/scim_tomcat_keystore"
-		keystorePass="changeit" />
-```
+	```XML
+		<Connector port="8443" protocol="HTTP/1.1" SSLEnabled="true"
+			maxThreads="150" scheme="https" secure="true"
+			clientAuth="false" sslProtocol="TLS"
+			keystoreFile="/root/scim_tomcat_keystore"
+			keystorePass="changeit" />
+	```
 3. Start tomcat and check you can reach the server over https
 4. Export the public certificate out of the keystore generated in step 1 -
-```Shell
-	keytool -export -keystore /root/scim_tomcat_keystore -alias scim_tom -file /root/scim_tomcat.cert
-```
+	```Shell
+		keytool -export -keystore /root/scim_tomcat_keystore -alias scim_tom -file /root/scim_tomcat.cert
+	```
 5. Import this certificate into the trust store of the Okta Provisioning Agent so that it can trust Tomcat server and the connection is secure. Note that you need to execute this command on the machine where the Okta Provisioning Agent is installed -
-```Shell
-    /opt/OktaProvisioningAgent/jre/bin/keytool -import -file /root/scim_tomcat.cert -alias scim_tom -keystore /opt/OktaProvisioningAgent/jre/lib/security/cacerts
-```
+	```Shell
+		/opt/OktaProvisioningAgent/jre/bin/keytool -import -file /root/scim_tomcat.cert -alias scim_tom -keystore /opt/OktaProvisioningAgent/jre/lib/security/cacerts
+	```
 	- Note: the password for cacerts is "changeit", remember to change this.
 
 ## Disclaimer & License
