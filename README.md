@@ -84,6 +84,20 @@ During development, the connector was hosted on Tomcat and used Maven to build t
 	- Going forward, this will be called the <SDK root directory>
 3. Grant read/write permissions to /opt to your user if you’re building the example connector as a non root user
 
+####Build Example Connector
+1. cd to <SDK root directory>/lib where the scim-server-sdk.jar file is
+2. Install it locally
+	- mvn install:install-file -Dfile=../lib/scim-server-sdk-01.01.00.jar -DgroupId=com.okta.scim.sdk -DartifactId=scim-server-sdk -Dpackaging=jar -Dversion=01.01.00
+	- Note: the command above is for SDK version 01.01.00; modify as necessary
+3. Edit dispatcher-servlet.xml
+	- Located in <SDK root directory>/example-mysql-server/src/main/webapp/WEB-INF/
+4. Modify the MySql connection string properties (server name, port, etc.) that are part of the MySqlSCIMServiceImpl bean.
+5. Build the MySQL example connector
+	- Note: you must be in the same directory as the pom.xml file
+		- cd to <SDK root directory>/example-mysql-server/
+	- Note: you must run mvn package as the same user who installed the SDK (step 2)
+	- mvn package
+
 ### Okta side
 
 ## Disclaimer & License
