@@ -96,12 +96,12 @@ public class SCIMServiceImpl implements SCIMService {
 	private Map<String, String> ldapGroupCore = new HashMap<String, String>();
 	private String USER_RESOURCE = "user";
 	private String GROUP_RESOURCE = "group";
+	//This should be the name of the App you created. On the Okta URL for the App, you can find this name
+	private String appName;
 	//Field names for the custom properties
 	private static final String CUSTOM_SCHEMA_PROPERTY_IS_ADMIN = "isAdmin";
 	private static final String CUSTOM_SCHEMA_PROPERTY_IS_OKTA = "isOkta";
 	private static final String CUSTOM_SCHEMA_PROPERTY_DEPARTMENT_NAME = "departmentName";
-	//This should be the name of the App you created. On the Okta URL for the App, you can find this name
-	private static final String APP_NAME = "onprem_app";
 	//This should be the name of the Universal Directory schema you created. We are assuming this name is "custom"
 	private static final String UD_SCHEMA_NAME = "custom";
 	private static final Logger LOGGER = Logger.getLogger(SCIMServiceImpl.class);
@@ -118,8 +118,8 @@ public class SCIMServiceImpl implements SCIMService {
 
 	@PostConstruct
 	public void afterCreation() throws Exception {
-		userCustomUrn = SCIMOktaConstants.CUSTOM_URN_PREFIX + APP_NAME + SCIMOktaConstants.CUSTOM_URN_SUFFIX + UD_SCHEMA_NAME;
 		initLdapVars();
+		userCustomUrn = SCIMOktaConstants.CUSTOM_URN_PREFIX + appName + SCIMOktaConstants.CUSTOM_URN_SUFFIX + UD_SCHEMA_NAME;
 		env.put(Context.INITIAL_CONTEXT_FACTORY, ldapInitialContextFactory);
 		env.put(Context.PROVIDER_URL, ldapUrl);
 		env.put(Context.SECURITY_AUTHENTICATION, ldapSecurityAuthentication);
@@ -149,6 +149,7 @@ public class SCIMServiceImpl implements SCIMService {
 		String groupCoreKey;
 		try {
 			config = new PropertiesConfiguration(CONF_FILENAME);
+			appName = config.getString("OPP.appName");
 			ldapBaseDn = config.getString("ldap.baseDn");
 			ldapGroupDn = config.getString("ldap.groupDn");
 			ldapUserDn = config.getString("ldap.userDn");

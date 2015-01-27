@@ -1,5 +1,8 @@
 # please make sure to escape any ',' in strings that you don't want turned into an array
 
+# The name of your app in Okta.
+OPP.appName = opp_ldap
+
 #############################################################
 # Settings that describe the structure of your LDAP server. #
 #############################################################
