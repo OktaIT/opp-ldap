@@ -43,7 +43,7 @@ You can use whatever implementation of the LDAP you want. This connector was dev
 
 ### Connector
 During development, the connector was hosted on Tomcat and used Maven to build the war. So those two packages will need to be installed,
-##Install Java (required to install Tomcat)
+####Install Java (required to install Tomcat)
 Tomcat only needs the JRE, but Maven needs the JDK to compile the connector in subsequent steps. Therefore, download the JDK, which includes the JRE.
 1. Install
 	- sudo yum install java-1.7.0-openjdk-devel
@@ -52,7 +52,7 @@ Tomcat only needs the JRE, but Maven needs the JDK to compile the connector in s
 	- As the user who will use OpenJDK, open the shell configuration file. For the Bash shell, this file is /home/username/.bashrc.
 	- At the bottom of the file, type the following line, replacing the hypothetical path with the actual path to use on your own system: export JAVA_HOME="/path/to/java/home"
 	- Save the file, and log out of and back into your session.
-##Install Tomcat (default location: /usr/share/tomcat6)
+####Install Tomcat (default location: /usr/share/tomcat6)
 1. Run to install:
 	- sudo yum install tomcat6 tomcat6-webapps tomcat6-admin-webapps
 2. Configure Tomcat to start as a service
