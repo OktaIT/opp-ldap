@@ -34,6 +34,7 @@ You can use whatever implementation of the LDAP you want. This connector was dev
 		- To stop a service from auto starting on boot
 			- sudo chkconfig OktaProvisioningAgent off
 4. Log files are located in /opt/OktaProvisioningAgent/logs
+
 ### Connector
 ### Okta side
 
