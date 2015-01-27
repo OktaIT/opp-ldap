@@ -17,7 +17,7 @@ More info:
 
 ### LDAP
 You can use whatever implementation of the LDAP you want. This connector was developed using OpenLDAP, but as long as the connector is configured properly, everything should work. More on the configuration later.
-### OPA
+### Okta Provisioning Agent (OPA)
 1. Download the Okta Provisioning Agent installer from Settings->Downloads section of your Admin panel.
 2. Installation instructions (detailed): a. https://support.okta.com/entries/29448976-Configuring-On-Premises-Provisioning#InstallingOPP
 3. Installation instructions (brief)
@@ -88,9 +88,11 @@ During development, the connector was hosted on Tomcat and used Maven to build t
 2. Install it locally
 	- mvn install:install-file -Dfile=../lib/scim-server-sdk-01.02.00.jar -DgroupId=com.okta.scim.sdk -DartifactId=scim-server-sdk -Dpackaging=jar -Dversion=01.02.00
 	- Note: the command above is for SDK version 01.02.00; modify as necessary
+3. Clone this repo.
+5. Rename the file opp-ldap/Okta-Provisioning-Connector-SDK/example-server/src/main/resources/connector.properties.example to connector.properties. You will need to modify that file to configure the connector. More details are in the file itself.
 3. Build the LDAP connector
 	- Note: you must be in the same directory as the pom.xml file
-		- cd to <SDK root directory>/example-mysql-server/
+		- cd to opp-ldap/Okta-Provisioning-Connector-SDK/example-server/
 	- Note: you must run mvn package as the same user who installed the SDK (step 2)
 	- mvn package
 
@@ -118,7 +120,7 @@ During development, the connector was hosted on Tomcat and used Maven to build t
 	- Authorization type: None
 	- Unique user field name: userName
 	- Connect to these agents: select the agent you installed
-5. Click Test Connector Configuration
+6. Click Test Connector Configuration
 	- Should show success and the functions that are supported
 7. Assign the application to a user or a group
 	- Check whether the user was created
@@ -172,7 +174,7 @@ to use the keystore /root/scim_tomcat_keystore (Generated above)
 		/opt/OktaProvisioningAgent/jre/bin/keytool -import -file /root/scim_tomcat.cert -alias scim_tom -keystore /opt/OktaProvisioningAgent/jre/lib/security/cacerts
 	```
 
-	- Note: the password for cacerts is "changeit", remember to change this.
+	- Note: the password for cacerts is "changeit", you should change this..
 
 ## Disclaimer & License
 Please be aware that all material published under the [OktaIT](https://github.com/OktaIT/) project have been written by the [Okta](http://www.okta.com/) IT Department but are **NOT OFFICAL** software release of Okta Inc.  As such, the software is provided "as is" without warranty or customer support of any kind.

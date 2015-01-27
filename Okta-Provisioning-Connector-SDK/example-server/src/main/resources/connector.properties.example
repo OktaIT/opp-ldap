@@ -1,39 +1,76 @@
-#Sat Jan 10 19:24:24 PST 2015
+# please make sure to escape any ',' in strings that you don't want turned into an array
+
+#############################################################
+# Settings that describe the structure of your LDAP server. #
+#############################################################
+# The baseDn is what the connector will bill all DNs from.
 ldap.baseDn=\,dc=example\,dc=com
+
+# The connector will append userDn and groupDn wherever necessary. 
 ldap.groupDn=ou=Groups
 ldap.userDn=ou=People
+
+# A prefix that the connector will prepend to the DN
 ldap.userPre=cn=
 ldap.groupPre=cn=
+
+# An example dn that the connector may generate: "cn=" + user.getUserName() + ",ou=People,dc=example,dc=com"
+# The connector will then use this dn to create a subcontext or destroy one.
+
+# Filters that the connector uses when rebuilding the cache after a restart.
 ldap.userFilter=(objectClass=OpenLDAPperson)
-ldap.groupFilter=(objectClass=posixGroup)
+ldap.groupFilter=(objectClass=groupOfNames)
+
+# The connector will query for "ou=People,dc=example,dc=com" with filter (objectClass=OpenLDAPperson) when
+# rebuilding the cache.
+
+###############################
+# Settings to connect to LDAP #
+###############################
 ldap.initialContextFactory=com.sun.jndi.ldap.LdapCtxFactory
-ldap.url=ldap://example.com:389
+ldap.url=ldap://ldap.kevinhehehehe.com:389
 ldap.securityAuthentication=simple
-ldap.securityPrincipal=cn=admin\,dc=example\,dc=com
-ldap.securityCredentials=sUp3rS3cr3t
-# user/group class can be an array or single objectc
-ldap.userClass=OpenLDAPperson,shadowAccount, posixAccount
-ldap.groupClass=posixGroup
+ldap.securityPrincipal=\,dc=example\,dc=com
+ldap.securityCredentials=sup3rS3cr3t
+
+######################################
+# Settings to describe Users in LDAP #
+######################################
+# user class can be an array or single objectc
+ldap.userClass=OpenLDAPperson,shadowAccount
+
+# connector will parse as Okta attr, ldap attr
+# The properties variable name doesn't matter, just needs to start with OPP.userCoreMap
+# The Okta attr name DOES matter, they are hardcoded, do not change them.
+OPP.userCoreMap.login			=	userName,		uid
+OPP.userCoreMap.familyName		=	familyName,		sn
+OPP.userCoreMap.givenName		=	givenName,		givenName
+OPP.userCoreMap.formattedName	=	formatted,		displayName
+OPP.userCoreMap.id				=	id,				description
+OPP.userCoreMap.password		=	password,		userPassword
+OPP.userCoreMap.phoneNumbers	=	phoneNumbers,	telephoneNumber
+OPP.userCoreMap.emails			=	emails,			mail
 
 # connector will parse each line as Ldap attrt, value type, schema name, field name
+# The properties variable name doesn't matter, just needs to start with OPP.userCustomMap
+# The values do not  matter, nothing is hard coded.
 # whitespace shouldn't matter here
-OPP.userCustomMap.primaryPhone=mobileTelephoneNumber,string,urn:okta:example_onpremapp_1:1.0:user:custom,primaryPhone
-OPP.userCustomMap.qweqweqwe=uidNumber,int,urn:okta:example_onpremapp_1:1.0:user:custom,qweqweqe
-OPP.userCustomMap.int=gidNumber,int,urn:okta:example_onpremapp_1:1.0:user:custom,int
-OPP.userCustomMap.number=favouriteDrink , double , urn:okta:example_onpremapp_1:1.0:user:custom , number
-OPP.userCustomMap.homeDir=homeDirectory, string , urn:okta:example_onpremapp_1:1.0:user:custom , homeDir
-OPP.userCustomMap.test= personalTitle,double,urn:okta:example_onpremapp_1:1.0:user:custom,number,test,test,test
+#OPP.userCustomMap.primaryPhone=mobile,string,urn:okta:khe_onpremapp_1:1.0:user:custom,primaryPhone
+#OPP.userCustomMap.qweqweqwe=uidNumber,int,urn:okta:khe_onpremapp_1:1.0:user:custom,qweqweqe
+#OPP.userCustomMap.int=gidNumber,int,urn:okta:khe_onpremapp_1:1.0:user:custom,int
+#OPP.userCustomMap.number=drink , double , urn:okta:khe_onpremapp_1:1.0:user:custom , number
+#OPP.userCustomMap.homeDir=homeDirectory, string , urn:okta:khe_onpremapp_1:1.0:user:custom , homeDir
+#OPP.userCustomMap.test= personalTitle,double,urn:okta:khe_onpremapp_1:1.0:user:custom,number,test,test,test
+
+#######################################
+# Settings to describe Groups in LDAP #
+#######################################
+# group class can be an array or single objectc
+ldap.groupClass=groupOfNames
 
 # connector will parse as Okta attr, ldap attr
-OPP.userCoreMap.login = userName, uid
-OPP.userCoreMap.familyName = familyName, sn
-OPP.userCoreMap.givenName = givenName, givenName
-OPP.userCoreMap.formattedName = formatted, displayName
-OPP.userCoreMap.id = id, description
-OPP.userCoreMap.password = password, userPassword
-OPP.userCoreMap.phoneNumbers = phoneNumbers, telephoneNumber
-OPP.userCoreMap.emails = emails, mail
+# The properties variable name doesn't matter, just needs to start with OPP.userCustomMap
+# The Okta attr name DOES matter, they are hardcoded, do not change them.
+OPP.groupCoreMap.id				=	id,				description
+OPP.groupCoreMap.member			=	members,		member
 
-# connector will parse as Okta attr, ldap attr
-OPP.groupCoreMap.members = members, memberUid
-OPP.groupCoreMap.id = id, description
