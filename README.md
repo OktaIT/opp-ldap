@@ -139,6 +139,7 @@ More detailed instructions can be found opp-ldap/Okta-Provisioning-Connector-SDK
 	- Note: This will only outline how to enable HTTPS with a self signed cert.If you wish to have better security
 and use certificates signed by trusted third-parties, you can follow the last step (5) below to import such a certificate
 into the trust store of the Okta Provisioning Agent.
+
 1. Generate a key.
 
 	```Shell
