@@ -1,0 +1,16 @@
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans-3.2.xsd">
+
+    <!--this is the required spring configuration file that is included within the scim-server-sdk jar-->
+    <import resource="classpath:opp-sdk-config.xml"/>
+
+    <bean id="service" class="com.okta.scim.server.example.SCIMServiceImpl">
+        <!--The SDK ships with the sample users.json and groups.json in the src/main/resources directory. Provide the absolute path to these files below. Edit these files with the users/groups you want to be imported into Okta.
+         If you do not want to store any data in files, you can leave the value for these property empty-->
+        <property name="usersFilePath" value="/logs/users.out"/>
+        <property name="groupsFilePath" value="/logs/groups.out"/>
+    </bean>
+
+</beans>
