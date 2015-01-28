@@ -1,9 +1,0 @@
-{
-    "schemas": ["urn:scim:schemas:core:1.0", "urn:okta:custom:group:1.0"],
-    "displayName": "AppGroup-04",
-    "id": "AppGroup-02",
-    "members" : [{"value": "101", "display": "okta"},{"value": "102", "display": "admin"}],
-    "urn:okta:custom:group:1.0":{
-        "description":"This is the second group"
-    }
-}
