@@ -11,7 +11,7 @@
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 
-Okta-Provisioning-Connector-SDK/example-server/target/
+Okta-Provisioning-Connector-LDAP/LDAP-connector-server/target/
 *.swp
 *.bak
-Okta-Provisioning-Connector-SDK/example-server/src/main/resources/connector.properties
+Okta-Provisioning-Connector-LDAP/LDAP-connector-server/src/main/resources/connector.properties
