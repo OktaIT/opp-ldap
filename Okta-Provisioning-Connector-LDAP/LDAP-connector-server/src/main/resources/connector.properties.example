@@ -45,14 +45,14 @@ ldap.userClass=OpenLDAPperson,shadowAccount
 # connector will parse as Okta attr, ldap attr
 # The properties variable name doesn't matter, just needs to start with OPP.userCoreMap
 # The Okta attr name DOES matter, they are hardcoded, do not change them.
-OPP.userCoreMap.login			=	userName,		uid
-OPP.userCoreMap.familyName		=	familyName,		sn
-OPP.userCoreMap.givenName		=	givenName,		givenName
-OPP.userCoreMap.formattedName	=	formatted,		displayName
-OPP.userCoreMap.id				=	id,				description
-OPP.userCoreMap.password		=	password,		userPassword
-OPP.userCoreMap.phoneNumbers	=	phoneNumbers,	telephoneNumber
-OPP.userCoreMap.emails			=	emails,			mail
+OPP.userCoreMap.login=userName,uid
+OPP.userCoreMap.familyName=familyName,sn
+OPP.userCoreMap.givenName=givenName,givenName
+OPP.userCoreMap.formattedName=formatted,displayName
+OPP.userCoreMap.id=id,description
+OPP.userCoreMap.password=password,userPassword
+OPP.userCoreMap.phoneNumbers=phoneNumbers,telephoneNumber
+OPP.userCoreMap.emails=emails,mail
 
 # connector will parse each line as Ldap attrt, value type, schema name, field name
 # The properties variable name doesn't matter, just needs to start with OPP.userCustomMap
@@ -74,6 +74,6 @@ ldap.groupClass=groupOfNames
 # connector will parse as Okta attr, ldap attr
 # The properties variable name doesn't matter, just needs to start with OPP.userCustomMap
 # The Okta attr name DOES matter, they are hardcoded, do not change them.
-OPP.groupCoreMap.id				=	id,				description
-OPP.groupCoreMap.member			=	members,		member
+OPP.groupCoreMap.id=id,description
+OPP.groupCoreMap.member=members,member
 
