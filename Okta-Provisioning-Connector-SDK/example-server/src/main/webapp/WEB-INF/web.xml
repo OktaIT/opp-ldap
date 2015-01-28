@@ -31,6 +31,7 @@
 	mapping it to the subdirectory (URL) that we want
 	to restrict.
 	-->
+<!--
 	<security-role>
 		<role-name>member</role-name>
 	</security-role>
@@ -45,6 +46,7 @@
 			<role-name>member</role-name>
 		</auth-constraint>
 	</security-constraint>
+-->
 
 	<!-- Define the Login Configuration for this Application -->
 	<login-config>

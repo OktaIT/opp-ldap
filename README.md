@@ -14,6 +14,8 @@ Installing and Configuring  the OPA:
 
 More info:
 - https://support.okta.com/entries/46749316-On-Premises-Provisioning-Deployment-Guide
+- https://okta.zendesk.com/entries/30093436-Creating-SCIM-Connectors
+- https://okta.zendesk.com/entries/30504778-Building-SCIM-Connectors
 
 ### LDAP
 You can use whatever implementation of the LDAP you want. This connector was developed using OpenLDAP, but as long as the connector is configured properly, everything should work. More on the configuration later.
@@ -80,11 +82,11 @@ During development, the connector was hosted on Tomcat and used Maven to build t
 	- Login to Okta as an admin
 	- Find the file at Settings > Downloads > Admin Downloads
 2. Extract to /opt/Okta-Provisioning-Connector-SDK/
-	- Going forward, this will be called the <SDK root directory>
+	- Going forward, this will be called the (SDK root directory)
 3. Grant read/write permissions to /opt to your user if you’re building the example connector as a non root user
 
 ####Build Example Connector
-1. cd to <SDK root directory>/lib where the scim-server-sdk.jar file is
+1. cd to (SDK root directory)/lib where the scim-server-sdk.jar file is
 2. Install it locally
 	- mvn install:install-file -Dfile=../lib/scim-server-sdk-01.02.00.jar -DgroupId=com.okta.scim.sdk -DartifactId=scim-server-sdk -Dpackaging=jar -Dversion=01.02.00
 	- Note: the command above is for SDK version 01.02.00; modify as necessary
@@ -104,7 +106,9 @@ During development, the connector was hosted on Tomcat and used Maven to build t
 ####Verify Successful Deployment of Connector
 1. Navigate to http://localhost:8080/manager/html and login
 	- This assumes you’ve setup a user with the “manager” role in the conf/tomcat-user.xml file
-	- ie: <user username="tomcat" password="s3cret" roles="manager"/>
+		```XML
+		<user username="tomcat" password="s3cret" roles="manager"/>
+		```
 2. Find the SCIM connector app and verify that it is running (look for “true” in the Running column)
 3. If it did not start, view the Tomcat log files under /usr/share/tomcat6/logs
 	- scim-mysql-connector-example.log
@@ -115,8 +119,8 @@ During development, the connector was hosted on Tomcat and used Maven to build t
 2. General tab > select “Enable on-premises user management configuration”
 3. Provisioning tab appears
 4. Navigate to the Provisioning tab and configure the following:
-	- SCIM Connector base URL: http://localhost:8080/scim-mysql-connector-example-01.01.00-SNAPSHOT
-		- Note: the info above is for SDK version 01.01.00; modify as necessary
+	- SCIM Connector base URL: http://localhost:8080/scim-mysql-connector-example-01.02.00-SNAPSHOT
+		- Note: the info above is for SDK version 01.02.00; modify as necessary
 	- Authorization type: None
 	- Unique user field name: userName
 	- Connect to these agents: select the agent you installed
@@ -129,19 +133,37 @@ During development, the connector was hosted on Tomcat and used Maven to build t
 ###Other Notes:
 ####Enabling Basic Auth
 1. Add the role and user to your tomcat-users.xml file, which was located /usr/share/tomcat/conf/ in my testing environment.
+	```XML
+			<role rolename="member"/>
+			<user username="scim" password="test" roles="member" />
+	```
 	- Note: the connector was configured to user the rolename "member", you can edit this in opp-ldap/Okta-Provisioning-Connector-SDK/example-server/src/main/webapp/WEB-INF/web.xml
-```XML
-		<role rolename="member"/>
-		<user username="scim" password="test" roles="member" />
-```
+	- You will also need to comment uncomment this section in the web.xml file.
+	```XML
+	<!--
+		<security-role>
+			<role-name>member</role-name>
+		</security-role>
+		<security-constraint>
+			<web-resource-collection>
+					<web-resource-name>
+					Entire Application
+					</web-resource-name>
+					<url-pattern>/*</url-pattern>
+			</web-resource-collection>
+			<auth-constraint>
+				<role-name>member</role-name>
+			</auth-constraint>
+		</security-constraint>
+	-->
+	```
+
 2. In the provisioning tab of the app, select Basic Auth for the Authorization type and enter the Basic Auth credentials.
 
 ####Enabling HTTPS
 More detailed instructions can be found opp-ldap/Okta-Provisioning-Connector-SDK/example-server/README.txt.
 
-	- Note: This will only outline how to enable HTTPS with a self signed cert.If you wish to have better security
-and use certificates signed by trusted third-parties, you can follow the last step (5) below to import such a certificate
-into the trust store of the Okta Provisioning Agent.
+	- Note: This will only outline how to enable HTTPS with a self signed cert.If you wish to have better security and use certificates signed by trusted third-parties, you can follow the last step (5) below to import such a certificate into the trust store of the Okta Provisioning Agent.
 
 1. Generate a key.
 
@@ -175,6 +197,7 @@ to use the keystore /root/scim_tomcat_keystore (Generated above)
 	```
 
 	- Note: the password for cacerts is "changeit", you should change this..
+6. Change the SCIM connector base URL to use https in the app configuration in Okta.
 
 ## Disclaimer & License
 Please be aware that all material published under the [OktaIT](https://github.com/OktaIT/) project have been written by the [Okta](http://www.okta.com/) IT Department but are **NOT OFFICAL** software release of Okta Inc.  As such, the software is provided "as is" without warranty or customer support of any kind.
