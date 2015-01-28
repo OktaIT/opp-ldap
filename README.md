@@ -1,5 +1,5 @@
 # opp-ldap
-Okta OPP (On Premises Provisioning) connector to LDAP. Big Thanks to ayee@okta.com for writing most of the setup documentation.
+Okta OPP (On Premises Provisioning) connector to LDAP. Big Thanks to Tech Marketing for writing most of the setup documentation.
 
 ## Background on OPP
 * [On Premises Provisioning Deployment Guide](https://support.okta.com/articles/Knowledge_Article/46749316-On-Premises-Provisioning-Deployment-Guide)
@@ -9,7 +9,7 @@ Okta OPP (On Premises Provisioning) connector to LDAP. Big Thanks to ayee@okta.c
 ## Setup
 This is just a quick setup guide. The testing environment was on CentOS and RHEL. More thorough instructions can be found:
 
-Installing and Configuring  the OPA:
+Installing and Configuring the OPA:
 - https://support.okta.com/entries/29448976-Configuring-On-Premises-Provisioning#installing
 
 More info:
