@@ -91,16 +91,16 @@ During development, the connector was hosted on Tomcat and used Maven to build t
 	- mvn install:install-file -Dfile=../lib/scim-server-sdk-01.02.00.jar -DgroupId=com.okta.scim.sdk -DartifactId=scim-server-sdk -Dpackaging=jar -Dversion=01.02.00
 	- Note: the command above is for SDK version 01.02.00; modify as necessary
 3. Clone this repo.
-5. Rename the file opp-ldap/Okta-Provisioning-Connector-SDK/example-server/src/main/resources/connector.properties.example to connector.properties. You will need to modify that file to configure the connector. More details are in the file itself.
+5. Rename the file opp-ldap/Okta-Provisioning-Connector-LDAP/LDAP-connector-server/src/main/resources/connector.properties.example to connector.properties. You will need to modify that file to configure the connector. More details are in the file itself.
 3. Build the LDAP connector
 	- Note: you must be in the same directory as the pom.xml file
-		- cd to opp-ldap/Okta-Provisioning-Connector-SDK/example-server/
+		- cd to opp-ldap/Okta-Provisioning-Connector-LDAP/LDAP-connector-server/
 	- Note: you must run mvn package as the same user who installed the SDK (step 2)
 	- mvn package
 
 ####Deploy Example Connector
-- Copy the target/scim-server-example-01.02.00-SNAPSHOT.war to your Tomcat webapps directory.
-- cp /opt/Okta-Provisioning-Connector-SDK/example-server-mysql-server/target/scim-server-example-01.02.00-SNAPSHOT.war /usr/share/tomcat6/webapps
+- Copy the target/scim-server-LDAP-01.02.00-SNAPSHOT.war to your Tomcat webapps directory.
+- cp /opt/Okta-Provisioning-Connector-LDAP/LDAP-conector-server/target/scim-server-LDAP-01.02.00-SNAPSHOT.war /usr/share/tomcat6/webapps
 - Note: the command above is for SDK version 01.02.00; modify as necessary.
 
 ####Verify Successful Deployment of Connector
@@ -111,15 +111,15 @@ During development, the connector was hosted on Tomcat and used Maven to build t
 		```
 2. Find the SCIM connector app and verify that it is running (look for “true” in the Running column)
 3. If it did not start, view the Tomcat log files under /usr/share/tomcat6/logs
-	- scim-mysql-connector-example.log
+	- scim-server-LDAP.log
 
 ### Okta side
 ####Connect to Okta Service and Test
-1. Login to Okta as an admin and either create or navigate to your app named “onprem_app”
+1. Login to Okta as an admin and either create or navigate to your app named you can name your app anything.
 2. General tab > select “Enable on-premises user management configuration”
 3. Provisioning tab appears
 4. Navigate to the Provisioning tab and configure the following:
-	- SCIM Connector base URL: http://localhost:8080/scim-mysql-connector-example-01.02.00-SNAPSHOT
+	- SCIM Connector base URL: http://localhost:8080/scim-server-LDAP-01.02.00-SNAPSHOT
 		- Note: the info above is for SDK version 01.02.00; modify as necessary
 	- Authorization type: None
 	- Unique user field name: userName
@@ -137,7 +137,7 @@ During development, the connector was hosted on Tomcat and used Maven to build t
 			<role rolename="member"/>
 			<user username="scim" password="test" roles="member" />
 	```
-	- Note: the connector was configured to user the rolename "member", you can edit this in opp-ldap/Okta-Provisioning-Connector-SDK/example-server/src/main/webapp/WEB-INF/web.xml
+	- Note: the connector was configured to user the rolename "member", you can edit this in opp-ldap/Okta-Provisioning-Connector-LDAP/LDAP-connector-server/src/main/webapp/WEB-INF/web.xml
 	- You will also need to comment uncomment this section in the web.xml file.
 	```XML
 	<!--
@@ -161,7 +161,7 @@ During development, the connector was hosted on Tomcat and used Maven to build t
 2. In the provisioning tab of the app, select Basic Auth for the Authorization type and enter the Basic Auth credentials.
 
 ####Enabling HTTPS
-More detailed instructions can be found opp-ldap/Okta-Provisioning-Connector-SDK/example-server/README.txt.
+More detailed instructions can be found opp-ldap/Okta-Provisioning-Connector-LDAP/LDAP-connector-server/README.txt.
 
 	- Note: This will only outline how to enable HTTPS with a self signed cert.If you wish to have better security and use certificates signed by trusted third-parties, you can follow the last step (5) below to import such a certificate into the trust store of the Okta Provisioning Agent.
 
