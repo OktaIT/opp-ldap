@@ -119,7 +119,6 @@ public class SCIMServiceImpl implements SCIMService {
 
 	@PostConstruct
 	public void afterCreation() throws Exception {
-		LOGGER.debug("TEST");
 		initLdapVars();
 		userCustomUrn = SCIMOktaConstants.CUSTOM_URN_PREFIX + appName + SCIMOktaConstants.CUSTOM_URN_SUFFIX + UD_SCHEMA_NAME;
 		env.put(Context.INITIAL_CONTEXT_FACTORY, ldapInitialContextFactory);
@@ -849,6 +848,7 @@ public class SCIMServiceImpl implements SCIMService {
 		if(user.getPassword() != null) {
 			//passwd.add(hashPassword(user.getPassword()));
 			passwd.add(user.getPassword());
+			user.setPassword("");
 		}
 		if(user.getPhoneNumbers() != null) {
 			Object[] phoneNums = user.getPhoneNumbers().toArray();

@@ -83,7 +83,7 @@ During development, the connector was hosted on Tomcat and used Maven to build t
 	- Find the file at Settings > Downloads > Admin Downloads
 2. Extract to /opt/Okta-Provisioning-Connector-SDK/
 	- Going forward, this will be called the (SDK root directory)
-3. Grant read/write permissions to /opt to your user if you’re building the example connector as a non root user
+3. Grant read/write permissions to /opt to your user if you’re building the LDAP connector as a non root user
 
 ####Build Example Connector
 1. cd to (SDK root directory)/lib where the scim-server-sdk.jar file is
