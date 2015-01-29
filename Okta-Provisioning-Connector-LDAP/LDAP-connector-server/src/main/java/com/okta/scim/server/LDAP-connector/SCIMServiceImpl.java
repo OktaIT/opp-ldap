@@ -1,4 +1,5 @@
 package com.okta.scim.server.LDAP.connector;
+//package com.okta.scim.server.example;
 
 //IMPORTS!
 import com.okta.scim.server.capabilities.UserManagementCapabilities;
@@ -118,6 +119,7 @@ public class SCIMServiceImpl implements SCIMService {
 
 	@PostConstruct
 	public void afterCreation() throws Exception {
+		LOGGER.debug("TEST");
 		initLdapVars();
 		userCustomUrn = SCIMOktaConstants.CUSTOM_URN_PREFIX + appName + SCIMOktaConstants.CUSTOM_URN_SUFFIX + UD_SCHEMA_NAME;
 		env.put(Context.INITIAL_CONTEXT_FACTORY, ldapInitialContextFactory);
