@@ -3,6 +3,9 @@
 # The name of your app in Okta.
 OPP.appName = opp_ldap
 
+#OPP.whitelistForUsernames = @okta.com
+OPP.whitelist = true
+
 #############################################################
 # Settings that describe the structure of your LDAP server. #
 #############################################################
@@ -16,6 +19,9 @@ ldap.userDn=ou=People
 # A prefix that the connector will prepend to the DN
 ldap.userPre=cn=
 ldap.groupPre=cn=
+
+# use the entire username for inserting into DN, if false only pulls beginning before @example.com
+ldap.useEntireUsername = true
 
 # An example dn that the connector may generate: "cn=" + user.getUserName() + ",ou=People,dc=example,dc=com"
 # The connector will then use this dn to create a subcontext or destroy one.
