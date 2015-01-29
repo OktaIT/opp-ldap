@@ -1,5 +1,4 @@
 package com.okta.scim.server.LDAP.connector;
-//package com.okta.scim.server.example;
 
 //IMPORTS!
 import com.okta.scim.server.capabilities.UserManagementCapabilities;
@@ -52,6 +51,7 @@ import java.util.Set;
 import java.util.Iterator;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import java.util.NoSuchElementException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.io.UnsupportedEncodingException;
@@ -92,6 +92,9 @@ public class SCIMServiceImpl implements SCIMService {
 	private String ldapSecurityCredentials;
 	private String[] ldapUserClass;
 	private String[] ldapGroupClass;
+	private List<String> usernameWhitelist;
+	private boolean useWhitelist;
+	private boolean useEntireUsername;
 	private Map<String, String> ldapUserCore = new HashMap<String, String>();
 	private Map<String, String[]> ldapUserCustom = new HashMap<String, String[]>();
 	private Map<String, String> ldapGroupCore = new HashMap<String, String>();
@@ -168,6 +171,11 @@ public class SCIMServiceImpl implements SCIMService {
 			userCustomIt = config.getKeys("OPP.userCustomMap");
 			userCoreIt = config.getKeys("OPP.userCoreMap");
 			groupCoreIt = config.getKeys("OPP.groupCoreMap");
+			String[] whitelist = {"okta.com"};
+			//TODO: put this in config, I tried but it doesn't show up for some reason, investigate
+			usernameWhitelist = Arrays.asList(whitelist);//Arrays.asList(config.getStringArray("OPP.whitelistForUsernames"));
+			useWhitelist = true;//Boolean.parseBoolean(config.getString("OPP.whitelist"));
+			useEntireUsername = false;//Boolean.parseBoolean(config.getString("ldap.useEntireUsername"));
 			while(userCustomIt.hasNext()) {
 				customKey = userCustomIt.next();
 				userCustomMapHolder = config.getStringArray(customKey);
@@ -183,7 +191,7 @@ public class SCIMServiceImpl implements SCIMService {
 				groupCoreMapHolder = config.getStringArray(groupCoreKey);
 				ldapGroupCore.put(groupCoreMapHolder[0].trim(), groupCoreMapHolder[1].trim());
 			}
-		} catch (ConfigurationException e) {
+		} catch (ConfigurationException | NoSuchElementException e) {
 			handleGeneralException(e);
 			throw e;
 		}
@@ -265,7 +273,6 @@ public class SCIMServiceImpl implements SCIMService {
 	 *
 	 */
 
-
 	/**
 	 * This method creates a user. All the standard attributes of the SCIM User can be retrieved by using the
 	 * getters on the SCIMStandardUser member of the SCIMUser object.
@@ -288,16 +295,33 @@ public class SCIMServiceImpl implements SCIMService {
 	@Override
 	public SCIMUser createUser(SCIMUser user) throws OnPremUserManagementException {
 		String id = generateNextId(USER_RESOURCE);
+		String dnUsername;
+		String[] usernameSplit = user.getUserName().split("@");
 		user.setId(id);
+		LOGGER.debug(useWhitelist);
+		LOGGER.debug(!usernameWhitelist.contains(usernameSplit[1]));
 		LOGGER.info("[createUser] Creating User: " + user.getName().getFormattedName());
 		if (userMap == null) {
-		throw new OnPremUserManagementException("o01234", "Cannot create the user. The userMap is null", "http://some-help-url", null);
+			//TODO: error code
+			throw new OnPremUserManagementException("o01234", "Cannot create the user. The userMap is null", "http://some-help-url", null);
 		}
+		//TODO: throw in helper
+		if(usernameSplit.length != 2) {
+			//TODO: error code
+			LOGGER.warn("[createUser] Username: " +user.getUserName() + " can only contain one @.");
+			throw new OnPremUserManagementException("o01234", "Username can only contain one @.");
+		}
+		if(useWhitelist && (!usernameWhitelist.contains(usernameSplit[1]))) {
+			//TODO: error code
+			LOGGER.warn("[createUser] Username: " +user.getUserName() + " is not in the whitelist.");
+			throw new OnPremUserManagementException("o01234", "Username domain is not in whitelist.");
+		}
+		dnUsername = getUserDnName(user.getUserName());
 		try {
 			LdapContext ctx = new InitialLdapContext(env, null);
 			Attributes attrs = constructAttrsFromUser(user);
 			Name fullName = user.getName();
-			String dn = ldapUserPre + user.getUserName() + "," + ldapUserDn + ldapBaseDn;
+			String dn = ldapUserPre + dnUsername + "," + ldapUserDn + ldapBaseDn;
 			ctx.createSubcontext(dn, attrs);
 			ctx.close();
 			userMap.put(user.getId(), user);
@@ -305,6 +329,7 @@ public class SCIMServiceImpl implements SCIMService {
 		} catch (NamingException | InvalidDataTypeException e) {
 			handleGeneralException(e);
 			LOGGER.error(e.getMessage());
+			//TODO: error code
 			throw new OnPremUserManagementException("o01234", e.getMessage(), e);
 		}
 		return user;
@@ -327,16 +352,31 @@ public class SCIMServiceImpl implements SCIMService {
 	 */
 	public SCIMUser updateUser(String id, SCIMUser user) throws OnPremUserManagementException, EntityNotFoundException {
 		if (userMap == null) {
+			//TODO: error code
 			throw new OnPremUserManagementException("o12345", "Cannot update the user. The userMap is null");
 		}
 		LOGGER.debug("[updateUser] Updating user: " + user.getName().getFormattedName());
 		SCIMUser existingUser = userMap.get(id);
+		String dnUsername;
+		String[] usernameSplit = user.getUserName().split("@");
 		if (existingUser != null) {
-			userMap.put(id, user);
 			Name fullName = existingUser.getName();
+			//TODO: throw this in a helper
+			if(usernameSplit.length != 2) {
+				//TODO: error code
+				LOGGER.warn("[createUser] Username: " +user.getUserName() + " can only contain one @.");
+				throw new OnPremUserManagementException("o01234", "Username can only contain one @.");
+			}
+			if(useWhitelist && (!usernameWhitelist.contains(usernameSplit[1]))) {
+				//TODO: error code
+				LOGGER.warn("[createUser] Username: " +user.getUserName() + " is not in the whitelist.");
+				throw new OnPremUserManagementException("o01234", "Username domain is not in whitelist.");
+			}
+			dnUsername = getUserDnName(user.getUserName());
+			userMap.put(id, user);
 			try {
 				LdapContext ctx = new InitialLdapContext(env, null);
-				String dn = ldapUserPre + user.getUserName() + "," + ldapUserDn + ldapBaseDn;
+				String dn = ldapUserPre + dnUsername + "," + ldapUserDn + ldapBaseDn;
 				ctx.destroySubcontext(dn);
 
 				LOGGER.info("[updateUser] User " + user.getName().getFormattedName() + " successfully deleted from Directory Service.");
@@ -400,6 +440,7 @@ public class SCIMServiceImpl implements SCIMService {
 		SCIMUserQueryResponse response = new SCIMUserQueryResponse();
 		if (userMap == null) {
 			//Note that the Error Code "o34567" is arbitrary - You can use any code that you want to.
+			//TODO: error code
 			throw new OnPremUserManagementException("o34567", "Cannot get the users. The userMap is null");
 		}
 		int totalResults = userMap.size();
@@ -609,6 +650,7 @@ public class SCIMServiceImpl implements SCIMService {
 		LOGGER.debug("[createGroup] Creating group: " + group.getDisplayName());
 		boolean duplicate = false;
 		if (groupMap == null) {
+			//TODO: error code
 			throw new OnPremUserManagementException("o23456", "Cannot create the group. The groupMap is null");
 		}
 		for (Map.Entry<String, SCIMGroup> entry : groupMap.entrySet()) {
@@ -630,6 +672,7 @@ public class SCIMServiceImpl implements SCIMService {
 			LOGGER.info("[createGroup] Group " + group.getDisplayName() + " successfully created.");
 		} catch (NamingException e) {
 			handleGeneralException(e);
+			//TODO: error code
 			throw new OnPremUserManagementException("o01234", e.getMessage(), e);
 		}
 		groupMap.put(group.getId(), group);
@@ -906,6 +949,7 @@ public class SCIMServiceImpl implements SCIMService {
 				customAttr.add(value.toString());
 				attrs.put(customAttr);
 			} else {
+			//TODO: error code
 				throw new OnPremUserManagementException("o12345", "Custom Attr: " + Arrays.toString(configLine) + " was null for SCIMUser: " + user.getUserName());
 			}
 		}
@@ -1015,6 +1059,7 @@ public class SCIMServiceImpl implements SCIMService {
 				user.setCustomDoubleValue(configLine[1], configLine[2], Double.parseDouble(value.toString()), parentNames);
 			else
 				throw new OnPremUserManagementException("o12345", "Unexpected type for Custom attrs in config: " + Arrays.toString(configLine));
+			//TODO: error code
 		}
 		return user;
 	}
@@ -1139,6 +1184,7 @@ public class SCIMServiceImpl implements SCIMService {
 			return sParts;
 		} else {
 			LOGGER.error("[splitString] " + "Cannot parse: " + s + "using delimiter: " + delim);
+			//TODO: error code
 			throw new OnPremUserManagementException("o2313", "Cannot parse: " + s + "using delimiter: " + delim);
 		}
 	}
@@ -1154,6 +1200,15 @@ public class SCIMServiceImpl implements SCIMService {
 		e.printStackTrace(new PrintWriter(errors));
 		LOGGER.error(e.getMessage());
 		LOGGER.debug(errors.toString());
+	}
+
+	private String getUserDnName(String name) {
+		if(useEntireUsername) {
+			return name;
+		}
+		else {
+			return name.split("@")[0];
+		}
 	}
 }
 
