@@ -126,9 +126,10 @@ During development, the connector was hosted on Tomcat and used Maven to build t
 	- Connect to these agents: select the agent you installed
 6. Click Test Connector Configuration
 	- Should show success and the functions that are supported
-7. Assign the application to a user or a group
+7. Enable provisioning features and select which provisioning features that you want.
+8. Assign the application to a user or a group
 	- Check whether the user was created
-8. Check the agent.log under OPA/logs folder to see command activity from the Okta service
+9. Check the agent.log under OPA/logs folder to see command activity from the Okta service
 
 ###Other Notes:
 ####Enabling Basic Auth
