@@ -31,7 +31,7 @@ ldap.groupFilter=(objectClass=groupOfNames)
 # Settings to connect to LDAP #
 ###############################
 ldap.initialContextFactory=com.sun.jndi.ldap.LdapCtxFactory
-ldap.url=ldap://ldap.kevinhehehehe.com:389
+ldap.url=ldap://ldap.example.com:389
 ldap.securityAuthentication=simple
 ldap.securityPrincipal=\,dc=example\,dc=com
 ldap.securityCredentials=sup3rS3cr3t
@@ -58,12 +58,12 @@ OPP.userCoreMap.emails=emails,mail
 # The properties variable name doesn't matter, just needs to start with OPP.userCustomMap
 # The values do not  matter, nothing is hard coded.
 # whitespace shouldn't matter here
-#OPP.userCustomMap.primaryPhone=mobile,string,urn:okta:khe_onpremapp_1:1.0:user:custom,primaryPhone
-#OPP.userCustomMap.qweqweqwe=uidNumber,int,urn:okta:khe_onpremapp_1:1.0:user:custom,qweqweqe
-#OPP.userCustomMap.int=gidNumber,int,urn:okta:khe_onpremapp_1:1.0:user:custom,int
-#OPP.userCustomMap.number=drink , double , urn:okta:khe_onpremapp_1:1.0:user:custom , number
-#OPP.userCustomMap.homeDir=homeDirectory, string , urn:okta:khe_onpremapp_1:1.0:user:custom , homeDir
-#OPP.userCustomMap.test= personalTitle,double,urn:okta:khe_onpremapp_1:1.0:user:custom,number,test,test,test
+#OPP.userCustomMap.primaryPhone=mobile,string,urn:okta:example_onpremapp_1:1.0:user:custom,primaryPhone
+#OPP.userCustomMap.qweqweqwe=uidNumber,int,urn:okta:example_onpremapp_1:1.0:user:custom,qweqweqe
+#OPP.userCustomMap.int=gidNumber,int,urn:okta:example_onpremapp_1:1.0:user:custom,int
+#OPP.userCustomMap.number=drink , double , urn:okta:example_onpremapp_1:1.0:user:custom , number
+#OPP.userCustomMap.homeDir=homeDirectory, string , urn:okta:example_onpremapp_1:1.0:user:custom , homeDir
+#OPP.userCustomMap.test= personalTitle,double,urn:okta:example_onpremapp_1:1.0:user:custom,number,test,test,test
 
 #######################################
 # Settings to describe Groups in LDAP #
