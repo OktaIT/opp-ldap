@@ -298,8 +298,6 @@ public class SCIMServiceImpl implements SCIMService {
 		String dnUsername;
 		String[] usernameSplit = user.getUserName().split("@");
 		user.setId(id);
-		LOGGER.debug(useWhitelist);
-		LOGGER.debug(!usernameWhitelist.contains(usernameSplit[1]));
 		LOGGER.info("[createUser] Creating User: " + user.getName().getFormattedName());
 		if (userMap == null) {
 			//TODO: error code
@@ -884,24 +882,25 @@ public class SCIMServiceImpl implements SCIMService {
 			attr.add(value.toString());
 			attrs.put(attr);
 		}
-		Attribute passwd = attrs.get(ldapUserCore.get("password"));
-		Attribute phoneNumsAttr = attrs.get(ldapUserCore.get("phoneNumbers"));
-		Attribute emailsAttr = new BasicAttribute(ldapUserCore.get("emails"));
 		//Special cases for attributes that are not simple values
-		if(user.getPassword() != null) {
+		//TODO: make this better
+		if(user.getPassword() != null || ldapUserCore.get("password") != null) {
+			Attribute passwd = attrs.get(ldapUserCore.get("password"));
 			//passwd.add(hashPassword(user.getPassword()));
 			passwd.add(user.getPassword());
 			user.setPassword("");
 		}
-		if(user.getPhoneNumbers() != null) {
+		if(user.getPhoneNumbers() != null || ldapUserCore.get("phoneNumbers")) {
 			Object[] phoneNums = user.getPhoneNumbers().toArray();
+			Attribute phoneNumsAttr = attrs.get(ldapUserCore.get("phoneNumbers"));
 			for(int i = 0; i < phoneNums.length; i++) {
 				PhoneNumber num = (PhoneNumber) phoneNums[i];
 				phoneNumsAttr.add(num.getValue() + "," + num.isPrimary() + "," + num.getType().getTypeString());
 			}
 			attrs.put(phoneNumsAttr);
 		}
-		if(user.getEmails() != null) {
+		if(user.getEmails() != null || ldapUserCore.get("emails") != null) {
+			Attribute emailsAttr = new BasicAttribute(ldapUserCore.get("emails"));
 			Object[] emails = user.getEmails().toArray();
 			for(int i = 0; i < emails.length; i++) {
 				Email email = (Email) emails[i];//Yo,dawg I hurd you like emails...
