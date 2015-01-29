@@ -1,16 +1,7 @@
-Example SCIM Server Connector
+SCIM Server LDAP Connector
 ========
 
-This provides a working SCIM connector example where users and groups are kept in an in-memory identity store.
-
-
-Setup
-----------
-1. locate the /lib/scim-server-sdk jar file from the SDK root directory
-2. Install it locally: mvn install:install-file -Dfile=../lib/scim-server-sdk-01.02.00.jar -DgroupId=com.okta.scim.sdk -DartifactId=scim-server-sdk -Dpackaging=jar -Dversion=01.02.00
-3. Build the example: mvn package
-4. Take the target/scim-server-example-*.war and copy it to your Tomcat directory and run it.
-5. You can now use the tester to run methods against this example SCIM connector.
+This is the connector that takes provisioning calls fron the Okta Provisioning Agent and creates the users a LDAP server.
 
 
 How To Enable SSL
@@ -72,12 +63,3 @@ Tomcat server and the connection is secure. Note that you need to execute this c
 where the Okta Provisioning Agent is installed -
     /opt/OktaProvisioningAgent/jre/bin/keytool -import -file /root/scim_tomcat.cert -alias scim_tom -keystore /opt/OktaProvisioningAgent/jre/lib/security/cacerts
 
-Use Files To Store Users/Groups
--------------------------------
-The example server stores users/groups in memory. If you want to create users/groups in the example server, you should edit the code in SCIMServerImpl class.
-If you want to create users/groups in the example server without changing the code, you can specify the absolute paths for the files to read from/store into. They should be
-specified as values for the properties usersFilePath and groupsFilePath in dispatcher-servlet.xml.
-The SDK ships with sample users.json and groups.json (Located at scim-server-example/src/main/resources/data). You can specify the complete path for these files in dispatcher-servlet.xml.
-
-Whenever new users/groups/updates are pushed from Okta into the example server, these files will be updated.
-If you want to edit these files manually so that the users/groups in the edited file are imported into Okta, you should restart tomcat after editing these files.
