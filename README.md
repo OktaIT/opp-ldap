@@ -10,18 +10,17 @@ Okta OPP (On Premises Provisioning) connector to LDAP. Big Thanks to Tech Market
 This is just a quick setup guide. The testing environment was on CentOS and RHEL. More thorough instructions can be found:
 
 Installing and Configuring the OPA:
-- https://support.okta.com/entries/29448976-Configuring-On-Premises-Provisioning#installing
+- https://support.okta.com/articles/Knowledge_Article/29448976-Configuring-On-Premises-Provisioning#installing
 
 More info:
-- https://support.okta.com/entries/46749316-On-Premises-Provisioning-Deployment-Guide
-- https://okta.zendesk.com/entries/30093436-Creating-SCIM-Connectors
-- https://okta.zendesk.com/entries/30504778-Building-SCIM-Connectors
+- https://support.okta.com/articles/Knowledge_Article/46749316-On-Premises-Provisioning-Deployment-Guide
+- https://support.okta.com/articles/Knowledge_Article/30504778-Building-SCIM-Connectors
 
 ### LDAP
 You can use whatever implementation of the LDAP you want. This connector was developed using OpenLDAP, but as long as the connector is configured properly, everything should work. More on the configuration later.
 ### Okta Provisioning Agent (OPA)
 1. Download the Okta Provisioning Agent installer from Settings->Downloads section of your Admin panel.
-2. Installation instructions (detailed): a. https://support.okta.com/entries/29448976-Configuring-On-Premises-Provisioning#InstallingOPP
+2. Installation instructions (detailed): a. https://support.okta.com/articles/Knowledge_Article/29448976-Configuring-On-Premises-Provisioning#installing
 3. Installation instructions (brief)
 	- sudo yum localinstall OktaProvisioningAgent-01.00.01.x86_64.rpm
 	- /opt/OktaProvisioningAgent/configure_agent.sh
