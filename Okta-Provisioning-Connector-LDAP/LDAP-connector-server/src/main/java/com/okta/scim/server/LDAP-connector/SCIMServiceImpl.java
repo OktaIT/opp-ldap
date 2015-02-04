@@ -386,6 +386,7 @@ public class SCIMServiceImpl implements SCIMService {
 					Attributes attrs = constructAttrsFromUser(user);
 					ctx.createSubcontext(dn, attrs);
 					//this.createUser(user);
+					LOGGER.debug("[updateUser] User " + user.getName().getFormattedName() + " successfully inserted into Directory Service.");
 				}
 				ctx.close();
 			} catch (InvalidDataTypeException | NamingException e) {
@@ -622,6 +623,7 @@ public class SCIMServiceImpl implements SCIMService {
 	@Override
 	public SCIMUser getUser(String id) throws OnPremUserManagementException, EntityNotFoundException {
 		SCIMUser user = userMap.get(id);
+		LOGGER.info("[getUser] Id: " + id);
 		if (user != null) {
 			return user;
 		} else {
@@ -694,6 +696,7 @@ public class SCIMServiceImpl implements SCIMService {
 	 */
 	public SCIMGroup updateGroup(String id, SCIMGroup group) throws OnPremUserManagementException {
 		SCIMGroup existingGroup = groupMap.get(id);
+		LOGGER.debug("[updateGroup] Updating Group: " + group.getDisplayName());
 		try {
 			if (existingGroup != null) {
 				LdapContext ctx = new InitialLdapContext(env, null);
@@ -736,6 +739,7 @@ public class SCIMServiceImpl implements SCIMService {
 	@Override
 	public SCIMGroupQueryResponse getGroups(PaginationProperties pageProperties) throws OnPremUserManagementException {
 		SCIMGroupQueryResponse response = new SCIMGroupQueryResponse();
+		LOGGER.info("[getGroups]");
 		int totalResults = groupMap.size();
 		if (pageProperties != null) {
 			//Set the start index
@@ -765,6 +769,7 @@ public class SCIMServiceImpl implements SCIMService {
 	 */
 	public SCIMGroup getGroup(String id) throws OnPremUserManagementException {
 		SCIMGroup group = groupMap.get(id);
+		LOGGER.info("[getGroup] Id: " + id);
 		if (group != null) {
 			return group;
 		} else {
@@ -782,6 +787,7 @@ public class SCIMServiceImpl implements SCIMService {
 	 * @throws OnPremUserManagementException
 	 */
 	public void deleteGroup(String id) throws OnPremUserManagementException, EntityNotFoundException {
+		LOGGER.debug("[deleteGroup] Id: " + id);
 		if (groupMap.containsKey(id)) {
 			SCIMGroup group = groupMap.remove(id);
 			try {
