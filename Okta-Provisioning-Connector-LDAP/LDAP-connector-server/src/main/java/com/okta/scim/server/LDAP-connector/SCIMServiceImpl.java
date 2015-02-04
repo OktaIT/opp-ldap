@@ -151,6 +151,9 @@ public class SCIMServiceImpl implements SCIMService {
 		String customKey;
 		String coreKey;
 		String groupCoreKey;
+		//TODO: Better way to do this mapping would be unidirectional mappings vs bidirectional
+		//Connector -> LDAP and LDAP -> Connector would solve problem of changing mappings while
+		//entries still exist in LDAP
 		try {
 			config = new PropertiesConfiguration(CONF_FILENAME);
 			appName = config.getString("OPP.appName");
@@ -968,28 +971,37 @@ public class SCIMServiceImpl implements SCIMService {
 	 */
 	private SCIMUser constructUserFromAttrs(Attributes attrs) throws NamingException {
 		//create objects, pull in values from attrs using mapping from properties file.
+		//TODO: split this into other functions or clean this up
 		SCIMUser user = new SCIMUser();
 		String formattedNameLookup = ldapUserCore.get("formatted");
-		String formattedName = attrs.get(formattedNameLookup).get().toString();//displayName
+		String formattedName = "";
+		if(formattedNameLookup != null) formattedName = attrs.get(formattedNameLookup).get().toString();//displayName
+		else LOGGER.warn("[constructUserFromAttrs] Connector.properties did not have formatted entry for userCoreMap.");
 		String snLookup = ldapUserCore.get("familyName");
-		String sn = attrs.get(snLookup).get().toString();//sn
+		String sn = "";
+		if(snLookup != null) sn = attrs.get(snLookup).get().toString();//sn
+		else LOGGER.warn("[constructUserFromAttrs] Connector.properties did not have familyName entry for userCoreMap.");
 		String givenNameLookup = ldapUserCore.get("givenName");
-		String givenName = attrs.get(givenNameLookup).get().toString();
-		String idLookup = ldapUserCore.get("id");
-		String id = attrs.get(idLookup).get().toString();
-		String uidLookup = ldapUserCore.get("userName");
-		String uid = attrs.get(uidLookup).get().toString();
-		ArrayList<PhoneNumber> phoneNums = new ArrayList<PhoneNumber>();
-		ArrayList<Email> emails = new ArrayList<Email>();
+		String givenName = "";
+		if(givenNameLookup != null) givenName = attrs.get(givenNameLookup).get().toString();
+		else LOGGER.warn("[constructUserFromAttrs] Connector.properties did not have givenName entry for userCoreMap.");
 		Name fullName = new Name(formattedName, sn, givenName);
-		String phoneNumsAttrLookup = ldapUserCore.get("phoneNumbers");
-		Attribute phoneNumsAttr = attrs.get(phoneNumsAttrLookup);
-		String emailsAttrLookup = ldapUserCore.get("emails");
-		Attribute emailsAttr = attrs.get(emailsAttrLookup);
 		user.setName(fullName);
-		user.setUserName(uid);
+		String idLookup = ldapUserCore.get("id");
+		String id = "";
+		if(idLookup != null) id = attrs.get(idLookup).get().toString();
+		else LOGGER.warn("[constructUserFromAttrs] Connector.properties did not have id entry for userCoreMap.");
 		user.setId(id);
-		user.setActive(true);
+		String userNameLookup = ldapUserCore.get("userName");
+		String userName = "";
+		if(userNameLookup != null) userName = attrs.get(userNameLookup).get().toString();
+		else LOGGER.warn("[constructUserFromAttrs] Connector.properties did not have userName entry for userCoreMap.");
+		user.setUserName(userName);
+		ArrayList<PhoneNumber> phoneNums = new ArrayList<PhoneNumber>();
+		String phoneNumsAttrLookup = ldapUserCore.get("phoneNumbers");
+		Attribute phoneNumsAttr = null;
+		if(phoneNumsAttrLookup != null) attrs.get(phoneNumsAttrLookup);
+		else LOGGER.warn("[constructUserFromAttrs] Connector.properties did not have phoneNumbers entry for userCoreMap.");
 		//for each phone number, parse line from attrs and build PhoneNumber obj
 		if(phoneNumsAttr != null) {
 			for(int i = 0; i < phoneNumsAttr.size(); i++) {
@@ -1006,6 +1018,11 @@ public class SCIMServiceImpl implements SCIMService {
 			}
 			user.setPhoneNumbers(phoneNums);
 		}
+		String emailsAttrLookup = ldapUserCore.get("emails");
+		ArrayList<Email> emails = new ArrayList<Email>();
+		Attribute emailsAttr = null;
+		if(emailsAttrLookup != null) emailsAttr = attrs.get(emailsAttrLookup);
+		else LOGGER.warn("[constructUserFromAttrs] Connector.properties did not have emails entry for userCoreMap.");
 		//same for emails, TODO: can probably do this better
 		if(emailsAttr != null) {
 			for(int i = 0; i < emailsAttr.size(); i++) {
@@ -1021,6 +1038,7 @@ public class SCIMServiceImpl implements SCIMService {
 			}
 			user.setEmails(emails);
 		}
+		user.setActive(true);
 		return constructUserFromCustomAttrs(user, attrs);
 	}
 
@@ -1074,6 +1092,7 @@ public class SCIMServiceImpl implements SCIMService {
 	 */
 	private Attributes constructAttrsFromGroup(SCIMGroup group) {
 		Attributes attrs = new BasicAttributes(true);
+		LOGGER.debug(group.toString());
 		String[] keys = ldapGroupCore.keySet().toArray(new String[ldapGroupCore.size()]);
 		Attribute attr;
 		Object value;
@@ -1131,9 +1150,13 @@ public class SCIMServiceImpl implements SCIMService {
 		LOGGER.debug("[constructGroupFromAttrs] Constructing Group " + cn + " from Attrs.");
 		ArrayList<Membership> memberList = new ArrayList<Membership>();
 		String memberAttrLookup = ldapGroupCore.get("members");
-		Attribute memberAttr = attrs.get(memberAttrLookup);
+		Attribute memberAttr = null;
+		if(memberAttrLookup != null) attrs.get(memberAttrLookup);
+		else LOGGER.warn("[constructGroupFromAttrs] Connector.properties did not have members entry for groupCoreMap.");
 		String idLookup = ldapGroupCore.get("id");
-		String id = attrs.get(idLookup).get().toString();
+		String id = "";
+		if(idLookup != null) id = attrs.get(idLookup).get().toString();
+		else LOGGER.warn("[constructGroupFromAttrs] Connector.properties did not have id entry for groupCoreMap.");
 		group.setDisplayName(cn);
 		group.setId(id);
 		if(memberAttr != null) {
