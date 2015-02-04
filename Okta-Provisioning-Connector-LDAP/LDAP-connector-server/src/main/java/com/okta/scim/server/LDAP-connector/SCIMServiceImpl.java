@@ -854,6 +854,8 @@ public class SCIMServiceImpl implements SCIMService {
 		//TODO: fix this, this is ugly
 		//For each of the base attribute mappings in properties file, pull the value from user and
 		//add it to the attribute object.
+		//for any attrs that are not mapped/missing in Okta profile, and are required like uid, want to defer to LDAP exception
+		//rather than throwing one here
 		for(int i = 0; i < keys.length; i++) {
 			String attrType = ldapUserCore.get(keys[i]);
 			attr = new BasicAttribute(attrType);
@@ -884,13 +886,13 @@ public class SCIMServiceImpl implements SCIMService {
 		}
 		//Special cases for attributes that are not simple values
 		//TODO: make this better
-		if(user.getPassword() != null || ldapUserCore.get("password") != null) {
+		if(user.getPassword() != null && ldapUserCore.get("password") != null) {
 			Attribute passwd = attrs.get(ldapUserCore.get("password"));
 			//passwd.add(hashPassword(user.getPassword()));
 			passwd.add(user.getPassword());
 			user.setPassword("");
 		}
-		if(user.getPhoneNumbers() != null || ldapUserCore.get("phoneNumbers")) {
+		if(user.getPhoneNumbers() != null && ldapUserCore.get("phoneNumbers") != null) {
 			Object[] phoneNums = user.getPhoneNumbers().toArray();
 			Attribute phoneNumsAttr = attrs.get(ldapUserCore.get("phoneNumbers"));
 			for(int i = 0; i < phoneNums.length; i++) {
@@ -899,7 +901,7 @@ public class SCIMServiceImpl implements SCIMService {
 			}
 			attrs.put(phoneNumsAttr);
 		}
-		if(user.getEmails() != null || ldapUserCore.get("emails") != null) {
+		if(user.getEmails() != null && ldapUserCore.get("emails") != null) {
 			Attribute emailsAttr = new BasicAttribute(ldapUserCore.get("emails"));
 			Object[] emails = user.getEmails().toArray();
 			for(int i = 0; i < emails.length; i++) {
@@ -1095,7 +1097,7 @@ public class SCIMServiceImpl implements SCIMService {
 		Attribute member = attrs.get(ldapGroupCore.get("members"));
 		attrs.put(objclass);
 		//builds dn from all members, assumes the members are located in the same area as users.
-		if(group.getMembers() != null ) {
+		if(group.getMembers() != null && ldapGroupCore.get("members") != null) {
 			Object[] members = group.getMembers().toArray();
 			for(int i = 0; i < members.length; i++) {
 				Membership mem = (Membership) members[i];
