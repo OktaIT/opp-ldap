@@ -13,6 +13,9 @@ This connector simply takes a SCIMResource object from Okta and uses the mapping
 ## Limitations
 - Currently you should not change the connector.properties mapping and rebuild if there are users in the LDAP using the old mapping. The connector will try to use the new mappings when re-building the cache.
 
+- Okta doesn't store passwords. So once you assign the app to a user in Okta (assuming that Sync Okta Password is enabled), the user will have to change their password so that it can get pushed to the LDAP server.
+	- The connector removes the password from the SCIMUser object after it creates the attributes to insert into the LDAP server.
+
 ## Setup
 This is just a quick setup guide. The testing environment was on CentOS and RHEL. More thorough instructions can be found:
 
