@@ -321,6 +321,7 @@ public class SCIMServiceImpl implements SCIMService {
 		try {
 			LdapContext ctx = new InitialLdapContext(env, null);
 			Attributes attrs = constructAttrsFromUser(user);
+			LOGGER.debug(user.toString());
 			Name fullName = user.getName();
 			String dn = ldapUserPre + dnUsername + "," + ldapUserDn + ldapBaseDn;
 			ctx.createSubcontext(dn, attrs);
@@ -374,7 +375,7 @@ public class SCIMServiceImpl implements SCIMService {
 				throw new OnPremUserManagementException("o01234", "Username domain is not in whitelist.");
 			}
 			dnUsername = getUserDnName(user.getUserName());
-			userMap.put(id, user);
+			userMap.remove(id);
 			try {
 				LdapContext ctx = new InitialLdapContext(env, null);
 				String dn = ldapUserPre + dnUsername + "," + ldapUserDn + ldapBaseDn;
@@ -384,7 +385,9 @@ public class SCIMServiceImpl implements SCIMService {
 				if(user.isActive()) {
 					LOGGER.info("[updateUser] User is still active, re-adding user.");
 					Attributes attrs = constructAttrsFromUser(user);
+			LOGGER.debug(user.toString());
 					ctx.createSubcontext(dn, attrs);
+					userMap.put(id, user);
 					//this.createUser(user);
 					LOGGER.debug("[updateUser] User " + user.getName().getFormattedName() + " successfully inserted into Directory Service.");
 				}
@@ -417,7 +420,7 @@ public class SCIMServiceImpl implements SCIMService {
 	 */
 	public SCIMUserQueryResponse getUsers(PaginationProperties pageProperties, SCIMFilter filter) throws OnPremUserManagementException {
 		List<SCIMUser> users = new ArrayList<SCIMUser>();
-		LOGGER.debug("[getUsers]");
+		LOGGER.debug("[getUsers(PaginationProperties, SCIMFilter)]");
 		if (filter != null) {
 			//Get users based on a filter
 			users = getUserByFilter(filter);
@@ -432,6 +435,7 @@ public class SCIMServiceImpl implements SCIMService {
 			if (pageProperties != null) {
 				response.setStartIndex(pageProperties.getStartIndex());
 			}
+			LOGGER.debug("[getUser] Filtered results Returned: " + response.toString());
 			return response;
 		} else {
 			return getUsers(pageProperties);
@@ -440,6 +444,7 @@ public class SCIMServiceImpl implements SCIMService {
 
 	private SCIMUserQueryResponse getUsers(PaginationProperties pageProperties) {
 		SCIMUserQueryResponse response = new SCIMUserQueryResponse();
+		LOGGER.debug("[getUsers(PaginationProperties)]");
 		if (userMap == null) {
 			//Note that the Error Code "o34567" is arbitrary - You can use any code that you want to.
 			//TODO: error code
@@ -485,6 +490,7 @@ public class SCIMServiceImpl implements SCIMService {
 	 */
 	private List<SCIMUser> getUserByFilter(SCIMFilter filter) {
 		List<SCIMUser> users = new ArrayList<SCIMUser>();
+		LOGGER.debug("[getUserByFilter]");
 		SCIMFilterType filterType = filter.getFilterType();
 		if (filterType.equals(SCIMFilterType.EQUALS)) {
 			//Example to show how to deal with an Equality filter
@@ -651,6 +657,7 @@ public class SCIMServiceImpl implements SCIMService {
 	public SCIMGroup createGroup(SCIMGroup group) throws OnPremUserManagementException, DuplicateGroupException {
 		String displayName = group.getDisplayName();
 		LOGGER.debug("[createGroup] Creating group: " + group.getDisplayName());
+		LOGGER.debug(group.toString());
 		boolean duplicate = false;
 		if (groupMap == null) {
 			//TODO: error code
@@ -697,6 +704,7 @@ public class SCIMServiceImpl implements SCIMService {
 	public SCIMGroup updateGroup(String id, SCIMGroup group) throws OnPremUserManagementException {
 		SCIMGroup existingGroup = groupMap.get(id);
 		LOGGER.debug("[updateGroup] Updating Group: " + group.getDisplayName());
+		LOGGER.debug(group.toString());
 		try {
 			if (existingGroup != null) {
 				LdapContext ctx = new InitialLdapContext(env, null);
@@ -1098,7 +1106,6 @@ public class SCIMServiceImpl implements SCIMService {
 	 */
 	private Attributes constructAttrsFromGroup(SCIMGroup group) {
 		Attributes attrs = new BasicAttributes(true);
-		LOGGER.debug(group.toString());
 		String[] keys = ldapGroupCore.keySet().toArray(new String[ldapGroupCore.size()]);
 		Attribute attr;
 		Object value;
