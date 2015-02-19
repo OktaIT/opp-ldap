@@ -175,10 +175,10 @@ public class SCIMServiceImpl implements SCIMService {
 			userCoreIt = config.getKeys("OPP.userCoreMap");
 			groupCoreIt = config.getKeys("OPP.groupCoreMap");
 			String[] whitelist = {"okta.com"};
-			//TODO: put this in config, I tried but it doesn't show up for some reason, investigate
-			usernameWhitelist = Arrays.asList(whitelist);//Arrays.asList(config.getStringArray("OPP.whitelistForUsernames"));
-			useWhitelist = true;//Boolean.parseBoolean(config.getString("OPP.whitelist"));
-			useEntireUsername = false;//Boolean.parseBoolean(config.getString("ldap.useEntireUsername"));
+			usernameWhitelist = Arrays.asList(config.getStringArray("OPP.whitelistForUsernames"));//Arrays.asList(whitelist);
+			useWhitelist = Boolean.parseBoolean(config.getString("OPP.whitelist"));//false
+			useEntireUsername = Boolean.parseBoolean(config.getString("ldap.useEntireUsername"));//true
+			//TODO: can put this in a function or something, maybe
 			while(userCustomIt.hasNext()) {
 				customKey = userCustomIt.next();
 				userCustomMapHolder = config.getStringArray(customKey);
@@ -398,9 +398,10 @@ public class SCIMServiceImpl implements SCIMService {
 			}
 		} else {
 			LOGGER.warn("[updateUser] User " + user.getName().getFormattedName() + " not found, if user is still active, re-adding.");
-			if(user.isActive()) {
-				this.createUser(user);
-			}
+			throw new OnPremUserManagementException("o01234", "User " + id + " not found when trying to perform update");
+//			if(user.isActive()) {
+//				this.createUser(user);
+//			}
 		}
 		return user;
 	}
