@@ -1139,7 +1139,8 @@ public class SCIMServiceImpl implements SCIMService {
 			Object[] members = group.getMembers().toArray();
 			for(int i = 0; i < members.length; i++) {
 				Membership mem = (Membership) members[i];
-				String name = ldapUserPre + mem.getDisplayName() + "," + ldapUserDn + ldapBaseDn;
+				String dnUsername = getUserDnName(mem.getDisplayName());
+				String name = ldapUserPre + dnUsername + "," + ldapUserDn + ldapBaseDn;
 				DistinguishedName dn = new DistinguishedName(name);
 				member.add(dn.encode());
 			}
