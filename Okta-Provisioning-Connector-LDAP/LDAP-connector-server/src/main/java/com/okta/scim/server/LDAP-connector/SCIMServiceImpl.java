@@ -32,6 +32,7 @@ import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.commons.configuration.ConfigurationException;
 
+import java.lang.Thread;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
@@ -122,7 +123,9 @@ public class SCIMServiceImpl implements SCIMService {
 
 	@PostConstruct
 	public void afterCreation() throws Exception {
+		LOGGER.info("[afterCreation] Initializing connector...");
 		initLdapVars();
+		LOGGER.info("[afterCreation] Imported config from connector.properties.");
 		userCustomUrn = SCIMOktaConstants.CUSTOM_URN_PREFIX + appName + SCIMOktaConstants.CUSTOM_URN_SUFFIX + UD_SCHEMA_NAME;
 		env.put(Context.INITIAL_CONTEXT_FACTORY, ldapInitialContextFactory);
 		env.put(Context.PROVIDER_URL, ldapUrl);
@@ -132,7 +135,10 @@ public class SCIMServiceImpl implements SCIMService {
 		nextUserId = 100;
 		nextGroupId = 1000;
 		initUsers();
+		LOGGER.info("[afterCreation] Imported users from LDAP.");
 		initGroups();
+		LOGGER.info("[afterCreation] Imported groups from LDAP.");
+		LOGGER.info("Connector initialized and waiting for tasks.");
 	}
 
 	/**
@@ -445,7 +451,7 @@ public class SCIMServiceImpl implements SCIMService {
 
 	private SCIMUserQueryResponse getUsers(PaginationProperties pageProperties) {
 		SCIMUserQueryResponse response = new SCIMUserQueryResponse();
-		LOGGER.debug("[getUsers(PaginationProperties)]");
+		LOGGER.debug("[getUsers(PaginationProperties)] UserMap size: " + userMap.size());
 		if (userMap == null) {
 			//Note that the Error Code "o34567" is arbitrary - You can use any code that you want to.
 			//TODO: error code
@@ -915,18 +921,25 @@ public class SCIMServiceImpl implements SCIMService {
 			Attribute phoneNumsAttr = attrs.get(ldapUserCore.get("phoneNumbers"));
 			for(int i = 0; i < phoneNums.length; i++) {
 				PhoneNumber num = (PhoneNumber) phoneNums[i];
-				phoneNumsAttr.add(num.getValue() + "," + num.isPrimary() + "," + num.getType().getTypeString());
+				phoneNumsAttr.add(num.getValue());
 			}
 			attrs.put(phoneNumsAttr);
 		}
-		if(user.getEmails() != null && ldapUserCore.get("emails") != null) {
-			Attribute emailsAttr = new BasicAttribute(ldapUserCore.get("emails"));
+		if(user.getEmails() != null && ldapUserCore.get("primaryEmail") != null) {
+			Attribute primaryEmailAttr = new BasicAttribute(ldapUserCore.get("primaryEmail"));
+			Attribute secondaryEmailAttr = new BasicAttribute(ldapUserCore.get("secondaryEmail"));
 			Object[] emails = user.getEmails().toArray();
 			for(int i = 0; i < emails.length; i++) {
 				Email email = (Email) emails[i];//Yo,dawg I hurd you like emails...
-				emailsAttr.add(email.getValue() + "|" + email.isPrimary() + "|" + email.getType());
+				if(email.isPrimary()) {
+					primaryEmailAttr.add(email.getValue());
+					attrs.put(primaryEmailAttr);
+				}
+				else if(!email.isPrimary() && ldapUserCore.get("secondaryEmail") != null) {
+					secondaryEmailAttr.add(email.getValue());
+					attrs.put(secondaryEmailAttr);
+				}
 			}
-			attrs.put(emailsAttr);
 		}
 		attrs.put(objclass);
 		return constructCustomAttrsFromUser(user, attrs);
@@ -1015,44 +1028,36 @@ public class SCIMServiceImpl implements SCIMService {
 		ArrayList<PhoneNumber> phoneNums = new ArrayList<PhoneNumber>();
 		String phoneNumsAttrLookup = ldapUserCore.get("phoneNumbers");
 		Attribute phoneNumsAttr = null;
-		if(phoneNumsAttrLookup != null) attrs.get(phoneNumsAttrLookup);
+		if(phoneNumsAttrLookup != null) phoneNumsAttr = attrs.get(phoneNumsAttrLookup);
 		else LOGGER.warn("[constructUserFromAttrs] Connector.properties did not have phoneNumbers entry for userCoreMap.");
+		//set their password to empty string
+		user.setPassword("");
 		//for each phone number, parse line from attrs and build PhoneNumber obj
 		if(phoneNumsAttr != null) {
 			for(int i = 0; i < phoneNumsAttr.size(); i++) {
 				String phoneNum = phoneNumsAttr.get(i).toString();
-				String[] phoneNumParts = splitString(phoneNum, ",");
-				if(phoneNumParts.length > 2) {
-					PhoneNumber.PhoneNumberType type = PhoneNumber.PhoneNumberType.valueOf(phoneNumParts[2].toUpperCase());
-					PhoneNumber numEntry = new PhoneNumber(phoneNumParts[0], type, Boolean.parseBoolean(phoneNumParts[1]));
+				if(phoneNum != null) {
+					PhoneNumber.PhoneNumberType type = PhoneNumber.PhoneNumberType.valueOf("MOBILE");
+					PhoneNumber numEntry = new PhoneNumber(phoneNum, type, true);
 					phoneNums.add(numEntry);
-				}
-				else {
-					LOGGER.error("[constructUserFromAttrs] String: " + phoneNum + "was ill formatted, expected 3 segments.");
 				}
 			}
 			user.setPhoneNumbers(phoneNums);
 		}
-		String emailsAttrLookup = ldapUserCore.get("emails");
 		ArrayList<Email> emails = new ArrayList<Email>();
-		Attribute emailsAttr = null;
-		if(emailsAttrLookup != null) emailsAttr = attrs.get(emailsAttrLookup);
-		else LOGGER.warn("[constructUserFromAttrs] Connector.properties did not have emails entry for userCoreMap.");
-		//same for emails, TODO: can probably do this better
-		if(emailsAttr != null) {
-			for(int i = 0; i < emailsAttr.size(); i++) {
-				String email = emailsAttr.get(i).toString();
-				String[] emailParts = splitString(email, "|");
-				if(emailParts.length > 2) {
-					Email emailEntry = new Email(emailParts[0], emailParts[2], Boolean.parseBoolean(emailParts[1]));
-					emails.add(emailEntry);
-				}
-				else {
-					LOGGER.error("[constructUserFromAttrs] String: " + email + "was ill formatted, expected 3 segments.");
-				}
-			}
-			user.setEmails(emails);
-		}
+		String primaryEmailLookup = ldapUserCore.get("primaryEmail");
+		String primaryEmail = null;
+		if(primaryEmailLookup != null) primaryEmail = attrs.get(primaryEmailLookup).get().toString();
+		else LOGGER.warn("[constructUserFromAttrs] Connector.properties did not have a primaryEmail entry for userCoreMap.");
+		Email primaryEmailEntry = new Email(primaryEmail, "primary", true);
+		emails.add(primaryEmailEntry);
+		String secondaryEmailLookup = ldapUserCore.get("secondaryEmail");
+		String secondaryEmail = null;
+		if(secondaryEmailLookup != null) secondaryEmail = attrs.get(secondaryEmailLookup).get().toString();
+		else LOGGER.warn("[constructUserFromAttrs] Connector.properties did not have a secondaryEmail entry for userCoreMap.");
+		Email secondaryEmailEntry = new Email(secondaryEmail, "secondary", false);
+		emails.add(secondaryEmailEntry);
+		user.setEmails(emails);
 		user.setActive(true);
 		return constructUserFromCustomAttrs(user, attrs);
 	}

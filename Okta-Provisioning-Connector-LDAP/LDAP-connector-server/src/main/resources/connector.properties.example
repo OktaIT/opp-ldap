@@ -3,7 +3,8 @@
 # The name of your app in Okta.
 OPP.appName = opp_ldap
 
-#OPP.whitelistForUsernames = @okta.com
+# Use a whitelist to filter out users with different domains. Can be a list.
+OPP.whitelistForUsernames = okta.com
 OPP.whitelist = true
 
 #############################################################
@@ -58,7 +59,8 @@ OPP.userCoreMap.formattedName=formatted,displayName
 OPP.userCoreMap.id=id,description
 OPP.userCoreMap.password=password,userPassword
 OPP.userCoreMap.phoneNumbers=phoneNumbers,telephoneNumber
-OPP.userCoreMap.emails=emails,mail
+OPP.userCoreMap.primaryEmail = primaryEmail, primaryEmail
+OPP.userCoreMap.secondaryEmail = secondaryEmail,secondaryEmail
 
 # connector will parse each line as Ldap attrt, value type, schema name, field name
 # The properties variable name doesn't matter, just needs to start with OPP.userCustomMap
