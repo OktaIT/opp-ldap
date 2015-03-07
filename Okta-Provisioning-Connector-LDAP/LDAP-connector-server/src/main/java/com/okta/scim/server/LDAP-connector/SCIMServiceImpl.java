@@ -1112,11 +1112,18 @@ public class SCIMServiceImpl implements SCIMService {
 	 */
 	private Attributes constructAttrsFromGroup(SCIMGroup group) {
 		Attributes attrs = new BasicAttributes(true);
+		ArrayList<Membership> memberList = new ArrayList<Membership>();
 		String[] keys = ldapGroupCore.keySet().toArray(new String[ldapGroupCore.size()]);
 		Attribute attr;
 		Object value;
 		LOGGER.info("[constructAttrsFromGroup] constructing Attrs from group " + group.getDisplayName());
 		Attribute objclass = new BasicAttribute("objectClass");
+		SCIMFilter filter = new SCIMFilter();
+		SCIMFilterAttribute filterAttr = new SCIMFilterAttribute();
+		SCIMFilterType filterType = SCIMFilterType.EQUALS;
+		filter.setFilterType(filterType);
+		filterAttr.setAttributeName("userName");
+		filter.setFilterAttribute(filterAttr);
 		for(int i = 0; i < ldapGroupClass.length; i++) objclass.add(ldapGroupClass[i]);
 		for(int i = 0; i < keys.length; i++) {
 			String attrType = ldapGroupCore.get(keys[i]);
@@ -1140,10 +1147,17 @@ public class SCIMServiceImpl implements SCIMService {
 			for(int i = 0; i < members.length; i++) {
 				Membership mem = (Membership) members[i];
 				String dnUsername = getUserDnName(mem.getDisplayName());
+				filter.setFilterValue(mem.getDisplayName());
+				List<SCIMUser> result = getUsersByEqualityFilter(filter);
 				String name = ldapUserPre + dnUsername + "," + ldapUserDn + ldapBaseDn;
 				DistinguishedName dn = new DistinguishedName(name);
-				member.add(dn.encode());
+				if(result.size() == 1) {
+					member.add(dn.encode());
+					memberList.add(mem);
+				}
 			}
+			//have to clear out memberlist since Okta is sending SCIMGroup objs with too many members.
+			group.setMembers(memberList);
 		}
 		return attrs;
 	}
@@ -1158,20 +1172,13 @@ public class SCIMServiceImpl implements SCIMService {
 	 */
 	private SCIMGroup constructGroupFromAttrs(Attributes attrs) throws NamingException {
 		//create objs/get mappings from config file.
-		List<SCIMUser> result;
 		SCIMGroup group = new SCIMGroup();
-		SCIMFilter filter = new SCIMFilter();
-		SCIMFilterAttribute filterAttr = new SCIMFilterAttribute();
-		SCIMFilterType filterType = SCIMFilterType.EQUALS;
-		filter.setFilterType(filterType);
-		filterAttr.setAttributeName("userName");
-		filter.setFilterAttribute(filterAttr);
 		String cn = attrs.get("cn").get().toString();
 		LOGGER.debug("[constructGroupFromAttrs] Constructing Group " + cn + " from Attrs.");
 		ArrayList<Membership> memberList = new ArrayList<Membership>();
 		String memberAttrLookup = ldapGroupCore.get("members");
 		Attribute memberAttr = null;
-		if(memberAttrLookup != null) attrs.get(memberAttrLookup);
+		if(memberAttrLookup != null) memberAttr = attrs.get(memberAttrLookup);
 		else LOGGER.warn("[constructGroupFromAttrs] Connector.properties did not have members entry for groupCoreMap.");
 		String idLookup = ldapGroupCore.get("id");
 		String id = "";
@@ -1183,13 +1190,11 @@ public class SCIMServiceImpl implements SCIMService {
 			for(int i = 0; i < memberAttr.size(); i++) {
 				String memberDn = memberAttr.get(i).toString();
 				DistinguishedName dn = new DistinguishedName(memberDn);
-				LdapRdn memberCn = dn.getLdapRdn("cn");
-				filter.setFilterValue(memberCn.getValue());
+				LdapRdn memberCn = dn.getLdapRdn(ldapUserPre.split("=")[0]);
+				SCIMUser result = searchUserUsernames(memberCn.getValue());
 				//searches through cache to retrieve ids for group memebers,used in SCIMGroup
-				result = getUsersByEqualityFilter(filter);
-				if(result.size() == 1) {
-					SCIMUser resultUser = result.get(0);
-					Membership memHolder = new Membership(resultUser.getId(), memberCn.getValue());
+				if(result != null) {
+					Membership memHolder = new Membership(result.getId(), result.getUserName());
 					memberList.add(memHolder);
 				}
 			}
@@ -1246,6 +1251,12 @@ public class SCIMServiceImpl implements SCIMService {
 		LOGGER.debug(errors.toString());
 	}
 
+	/**
+	 * Helper function to get appropriate LDAP dn name as per the configs
+	 *
+	 * @param name - the name to process
+	 * @return returns the appropriate dn to use for LDAP
+	 */
 	private String getUserDnName(String name) {
 		if(useEntireUsername) {
 			return name;
@@ -1253,6 +1264,20 @@ public class SCIMServiceImpl implements SCIMService {
 		else {
 			return name.split("@")[0];
 		}
+	}
+
+	/**
+	 * Helper function to get appropriate LDAP dn name as per the configs
+	 *
+	 * @param name - the name to process
+	 * @return returns the appropriate dn to use for LDAP
+	 */
+	private SCIMUser searchUserUsernames(String name) {
+		for(Map.Entry<String, SCIMUser> entry : userMap.entrySet()) {
+			SCIMUser user = entry.getValue();
+			if(user.getUserName().contains(name)) return user;
+		}
+		return null;
 	}
 }
 
