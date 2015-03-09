@@ -1142,6 +1142,7 @@ public class SCIMServiceImpl implements SCIMService {
 		Attribute member = attrs.get(ldapGroupCore.get("members"));
 		attrs.put(objclass);
 		//builds dn from all members, assumes the members are located in the same area as users.
+		//TODO: trim down the dups comming from Okta, happens when group push is enabled for a group, assign app to one group, unassign, then assign to another group with same users, their external IDS will be different
 		if(group.getMembers() != null && ldapGroupCore.get("members") != null) {
 			Object[] members = group.getMembers().toArray();
 			for(int i = 0; i < members.length; i++) {
@@ -1151,13 +1152,16 @@ public class SCIMServiceImpl implements SCIMService {
 				List<SCIMUser> result = getUsersByEqualityFilter(filter);
 				String name = ldapUserPre + dnUsername + "," + ldapUserDn + ldapBaseDn;
 				DistinguishedName dn = new DistinguishedName(name);
+				//check that the member exists in the cache/ldap before making them a member of a group
 				if(result.size() == 1) {
 					member.add(dn.encode());
 					memberList.add(mem);
 				}
 			}
-			//have to clear out memberlist since Okta is sending SCIMGroup objs with too many members.
-			group.setMembers(memberList);
+			//Remove the member attr from the ldap query obj if there are no members to insert
+			if(memberList.size() == 0) {
+				attrs.remove(ldapGroupCore.get("members"));
+			}
 		}
 		return attrs;
 	}
