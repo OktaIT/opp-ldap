@@ -914,8 +914,8 @@ public class SCIMServiceImpl implements SCIMService {
 			Attribute passwd = attrs.get(ldapUserCore.get("password"));
 			//passwd.add(hashPassword(user.getPassword()));
 			passwd.add(user.getPassword());
-			user.setPassword("");
 		}
+		user.setPassword("");
 		if(user.getPhoneNumbers() != null && ldapUserCore.get("phoneNumbers") != null) {
 			Object[] phoneNums = user.getPhoneNumbers().toArray();
 			Attribute phoneNumsAttr = attrs.get(ldapUserCore.get("phoneNumbers"));
@@ -980,9 +980,6 @@ public class SCIMServiceImpl implements SCIMService {
 			if(value != null) {
 				customAttr.add(value.toString());
 				attrs.put(customAttr);
-			} else {
-			//TODO: error code
-				throw new OnPremUserManagementException("o12345", "Custom Attr: " + Arrays.toString(configLine) + " was null for SCIMUser: " + user.getUserName());
 			}
 		}
 		return attrs;
@@ -1002,28 +999,18 @@ public class SCIMServiceImpl implements SCIMService {
 		//TODO: split this into other functions or clean this up
 		SCIMUser user = new SCIMUser();
 		String formattedNameLookup = ldapUserCore.get("formatted");
-		String formattedName = "";
-		if(formattedNameLookup != null) formattedName = attrs.get(formattedNameLookup).get().toString();//displayName
-		else LOGGER.warn("[constructUserFromAttrs] Connector.properties did not have formatted entry for userCoreMap.");
+		String formattedName = getValueFromAttrs("formatted", formattedNameLookup, attrs);
 		String snLookup = ldapUserCore.get("familyName");
-		String sn = "";
-		if(snLookup != null) sn = attrs.get(snLookup).get().toString();//sn
-		else LOGGER.warn("[constructUserFromAttrs] Connector.properties did not have familyName entry for userCoreMap.");
+		String sn = getValueFromAttrs("familyName", snLookup, attrs);
 		String givenNameLookup = ldapUserCore.get("givenName");
-		String givenName = "";
-		if(givenNameLookup != null) givenName = attrs.get(givenNameLookup).get().toString();
-		else LOGGER.warn("[constructUserFromAttrs] Connector.properties did not have givenName entry for userCoreMap.");
+		String givenName = getValueFromAttrs("givenName", givenNameLookup, attrs);
 		Name fullName = new Name(formattedName, sn, givenName);
 		user.setName(fullName);
 		String idLookup = ldapUserCore.get("id");
-		String id = "";
-		if(idLookup != null) id = attrs.get(idLookup).get().toString();
-		else LOGGER.warn("[constructUserFromAttrs] Connector.properties did not have id entry for userCoreMap.");
+		String id = getValueFromAttrs("id", idLookup, attrs);
 		user.setId(id);
 		String userNameLookup = ldapUserCore.get("userName");
-		String userName = "";
-		if(userNameLookup != null) userName = attrs.get(userNameLookup).get().toString();
-		else LOGGER.warn("[constructUserFromAttrs] Connector.properties did not have userName entry for userCoreMap.");
+		String userName = getValueFromAttrs("userName", userNameLookup, attrs);
 		user.setUserName(userName);
 		ArrayList<PhoneNumber> phoneNums = new ArrayList<PhoneNumber>();
 		String phoneNumsAttrLookup = ldapUserCore.get("phoneNumbers");
@@ -1046,15 +1033,11 @@ public class SCIMServiceImpl implements SCIMService {
 		}
 		ArrayList<Email> emails = new ArrayList<Email>();
 		String primaryEmailLookup = ldapUserCore.get("primaryEmail");
-		String primaryEmail = null;
-		if(primaryEmailLookup != null) primaryEmail = attrs.get(primaryEmailLookup).get().toString();
-		else LOGGER.warn("[constructUserFromAttrs] Connector.properties did not have a primaryEmail entry for userCoreMap.");
+		String primaryEmail = getValueFromAttrs("primaryEmail", primaryEmailLookup, attrs);;
 		Email primaryEmailEntry = new Email(primaryEmail, "primary", true);
 		emails.add(primaryEmailEntry);
 		String secondaryEmailLookup = ldapUserCore.get("secondaryEmail");
-		String secondaryEmail = null;
-		if(secondaryEmailLookup != null) secondaryEmail = attrs.get(secondaryEmailLookup).get().toString();
-		else LOGGER.warn("[constructUserFromAttrs] Connector.properties did not have a secondaryEmail entry for userCoreMap.");
+		String secondaryEmail = getValueFromAttrs("secondaryEmail", secondaryEmailLookup, attrs);
 		Email secondaryEmailEntry = new Email(secondaryEmail, "secondary", false);
 		emails.add(secondaryEmailEntry);
 		user.setEmails(emails);
@@ -1085,19 +1068,23 @@ public class SCIMServiceImpl implements SCIMService {
 			//LOGGER.debug(Arrays.toString(configLine));
 			if(configLine.length > 3) parentNames = Arrays.copyOfRange(configLine, 3, configLine.length);
 			customAttr = attrs.get(keys[i]);
-			value = customAttr.get();
-			//TODO: make this better
-			//set type for value pulled from Attributes
-			if(configLine[0].equals("int"))
-				user.setCustomIntValue(configLine[1], configLine[2], Integer.parseInt(value.toString()), parentNames);
-			else if(configLine[0].equals("boolean"))
-				user.setCustomBooleanValue(configLine[1], configLine[2], Boolean.valueOf(value.toString()), parentNames);
-			else if(configLine[0].equals("string"))
-				user.setCustomStringValue(configLine[1], configLine[2], (String) value, parentNames);
-			else if(configLine[0].equals("double"))
-				user.setCustomDoubleValue(configLine[1], configLine[2], Double.parseDouble(value.toString()), parentNames);
-			else
-				throw new OnPremUserManagementException("o12345", "Unexpected type for Custom attrs in config: " + Arrays.toString(configLine));
+			if(customAttr != null) {
+				value = customAttr.get();
+				//TODO: make this better
+				//set type for value pulled from Attributes
+				if(configLine[0].equals("int"))
+					user.setCustomIntValue(configLine[1], configLine[2], Integer.parseInt(value.toString()), parentNames);
+				else if(configLine[0].equals("boolean"))
+					user.setCustomBooleanValue(configLine[1], configLine[2], Boolean.valueOf(value.toString()), parentNames);
+				else if(configLine[0].equals("string"))
+					user.setCustomStringValue(configLine[1], configLine[2], (String) value, parentNames);
+				else if(configLine[0].equals("double"))
+					user.setCustomDoubleValue(configLine[1], configLine[2], Double.parseDouble(value.toString()), parentNames);
+				else
+					throw new OnPremUserManagementException("o12345", "Unexpected type for Custom attrs in config: " + Arrays.toString(configLine));
+			} else {
+				LOGGER.warn("[constructUserFromCustomAttrs] LDAP did not have value for " + keys[i] + ".");
+			}
 			//TODO: error code
 		}
 		return user;
@@ -1282,6 +1269,17 @@ public class SCIMServiceImpl implements SCIMService {
 			if(user.getUserName().contains(name)) return user;
 		}
 		return null;
+	}
+
+	private String getValueFromAttrs(String map, String lookup, Attributes attrs) throws NamingException {
+		String value = "";
+		if(lookup != null) {
+			if(attrs.get(lookup) != null) {
+				value = attrs.get(lookup).get().toString();
+			}
+		}
+		else LOGGER.warn("[getValueFromAttrs] Connector.properties did not have a " + map + " entry for userCoreMap.");
+		return value;
 	}
 }
 
