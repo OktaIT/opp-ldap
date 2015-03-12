@@ -6,7 +6,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.okta.scim.sdk</groupId>
-    <version>01.02.00-SNAPSHOT</version>
+    <version>00.02.00-SNAPSHOT</version>
     <artifactId>scim-server-LDAP</artifactId>
     <packaging>war</packaging>
 
