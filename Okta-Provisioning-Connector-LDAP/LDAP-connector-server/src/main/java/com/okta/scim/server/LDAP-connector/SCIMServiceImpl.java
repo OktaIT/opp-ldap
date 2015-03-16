@@ -668,13 +668,23 @@ public class SCIMServiceImpl implements SCIMService {
 	 */
 	@Override
 	public SCIMUser getUser(String id) throws OnPremUserManagementException, EntityNotFoundException {
-		SCIMUser user = userMap.get(id);
 		LOGGER.info("[getUser] Id: " + id);
-		if (user != null) {
-			return user;
-		} else {
-			//If you do not find a user/group by the ID, you can throw this exception.
-			throw new EntityNotFoundException();
+		String searchDN = ldapUserDn + ldapBaseDn;
+		String idLookup = ldapUserCore.get("id");
+		String ldapFilter = "(" + idLookup + "=" + id +")";
+		SCIMUser user;
+		try {
+			ArrayList<Attributes> queryResults = queryLDAP(searchDN, ldapFilter);
+			if(queryResults.size() >= 1) {
+				user = constructUserFromAttrs(queryResults.get(0));
+				LOGGER.info("[getUser] User found with id: " + id);
+				return user;
+			} else {
+				throw new EntityNotFoundException();
+			}
+		} catch (NamingException e) {
+			handleGeneralException(e);
+			throw new OnPremUserManagementException("o01234", e.getMessage(), e);
 		}
 	}
 
@@ -856,7 +866,7 @@ public class SCIMServiceImpl implements SCIMService {
 			if(queryResults.size() >= 1) {
 				oldGroup = constructGroupFromAttrs(queryResults.get(0));
 				ctx.destroySubcontext(ldapGroupPre + oldGroup.getDisplayName() + "," + ldapGroupDn + ldapBaseDn);
-				LOGGER.info("[getGroup] Group found with id: " + id);
+				LOGGER.info("[deleteGroup] Group found with id: " + id);
 				ctx.close();
 			} else {
 				throw new EntityNotFoundException();
