@@ -368,7 +368,7 @@ public class SCIMServiceImpl implements SCIMService {
 			throw new OnPremUserManagementException("o12345", "Cannot update the user. The userMap is null");
 		}
 		LOGGER.debug("[updateUser] Updating user: " + user.getName().getFormattedName());
-		String dnUsername, oldDNUsername, oldDN;
+		String dnUsername, oldDNUsername, oldDN = "";
 		String[] usernameSplit = user.getUserName().split("@");
 		SCIMUser oldUser;
 		//TODO: throw this in a helper
@@ -385,27 +385,17 @@ public class SCIMServiceImpl implements SCIMService {
 		try {
 			LdapContext ctx = new InitialLdapContext(env, null);
 			String searchDN = ldapUserDn + ldapBaseDn;
-			ctx.setRequestControls(null);
-			SearchControls controls = new SearchControls();
-			controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
 			String idLookup = ldapUserCore.get("id");
 			String ldapFilter = "(" + idLookup + "=" + id +")";
 			int counter = 0;
-			LOGGER.debug(ldapFilter);
-			NamingEnumeration<?> namingEnum = ctx.search(searchDN, ldapFilter, controls);
-			while (namingEnum.hasMore()) {
-				SearchResult result = (SearchResult) namingEnum.next();
-				Attributes attrs = result.getAttributes();
-				oldUser = constructUserFromAttrs(attrs);
+			ArrayList<Attributes> queryResults = queryLDAP(searchDN, ldapFilter);
+			if(queryResults.size() == 1) {
+				oldUser = constructUserFromAttrs(queryResults.get(0));
 				oldDNUsername = getUserDnName(oldUser.getUserName());
 				oldDN = ldapUserPre + oldDNUsername + "," + ldapUserDn + ldapBaseDn;
-				counter++;
-			}
-			if(counter == 1) {
 				ctx.destroySubcontext(oldDN);
 				LOGGER.info("[updateUser] User " + user.getName().getFormattedName() + " successfully deleted from Directory Service.");
-			}
-			else {
+			} else {
 				LOGGER.warn("[updateUser] Connector found more than one user with dn: " + oldDN + ". Don't know what to do.");
 			}
 			if(user.isActive()) {
@@ -420,7 +410,6 @@ public class SCIMServiceImpl implements SCIMService {
 				LOGGER.debug("[updateUser] User " + user.getName().getFormattedName() + " successfully inserted into Directory Service.");
 			}
 			ctx.close();
-			namingEnum.close();
 		} catch (InvalidDataTypeException | NamingException e) {
 			handleGeneralException(e);
 			throw new OnPremUserManagementException("o01234", e.getMessage(), e);
@@ -578,26 +567,6 @@ public class SCIMServiceImpl implements SCIMService {
 				ctx.close();
 				namingEnum.close();
 			}
-//			for (Map.Entry<String, SCIMUser> entry : userMap.entrySet()) {
-//				boolean userFound = false;
-//				SCIMUser user = entry.getValue();
-//				//In this example, since we assume that the field name configured with Okta is "email", checking if we got the field name as "email" here
-//				if (fieldName.equalsIgnoreCase("email")) {
-//					//Get the user's emails and check if the value is the same as in the filter
-//					Collection<Email> emails = user.getEmails();
-//					if (emails != null) {
-//						for (Email email : emails) {
-//							if (email.getValue().equalsIgnoreCase(value)) {
-//								userFound = true;
-//								break;
-//							}
-//						}
-//					}
-//				}
-//				if (userFound) {
-//					users.add(user);
-//				}
-//			}
 		}
 		LOGGER.info("[getUsersByOrFilter] Users found: " + users.size());
 		return users;
@@ -678,74 +647,12 @@ public class SCIMServiceImpl implements SCIMService {
 			}
 		}
 		if(!ldapFilter.isEmpty()) {
-			NamingEnumeration<?> namingEnum = ctx.search(dn, ldapFilter, controls);
-			while (namingEnum.hasMore()) {
-				SearchResult result = (SearchResult) namingEnum.next();
-				Attributes attrs = result.getAttributes();
-				SCIMUser user = constructUserFromAttrs(attrs);
+			ArrayList<Attributes> queryResults = queryLDAP(dn, ldapFilter);
+			for(int i = 0; i < queryResults.size(); i++) {
+				SCIMUser user = constructUserFromAttrs(queryResults.get(i));
 				users.add(user);
 			}
-			ctx.close();
-			namingEnum.close();
 		}
-
-//		//A basic example of how to return users that match the criteria
-//		for (Map.Entry<String, SCIMUser> entry : userMap.entrySet()) {
-//			SCIMUser user = entry.getValue();
-//			boolean userFound = false;
-//			//Ex : "userName eq "someUserName""
-//			if (fieldName.equalsIgnoreCase("userName")) {
-//				LOGGER.debug("Username");
-//				String userName = user.getUserName();
-//				if (userName != null && userName.equals(value)) {
-//					userFound = true;
-//				}
-//			} else if (fieldName.equalsIgnoreCase("id")) {
-//				LOGGER.debug("id");
-//				//"id eq "someId""
-//				String id = user.getId();
-//				if (id != null && id.equals(value)) {
-//					userFound = true;
-//				}
-//			} else if (fieldName.equalsIgnoreCase("name")) {
-//				LOGGER.debug("name");
-//				String subFieldName = filter.getFilterAttribute().getSubAttributeName();
-//				Name name = user.getName();
-//				if (name == null || subFieldName == null) {
-//					continue;
-//				}
-//				if (subFieldName.equalsIgnoreCase("familyName")) {
-//					//"name.familyName eq "someFamilyName""
-//					String familyName = name.getLastName();
-//					if (familyName != null && familyName.equals(value)) {
-//						userFound = true;
-//					}
-//				} else if (subFieldName.equalsIgnoreCase("givenName")) {
-//					//"name.givenName eq "someGivenName""
-//					String givenName = name.getFirstName();
-//					if (givenName != null && givenName.equals(value)) {
-//						userFound = true;
-//					}
-//				}
-//			} else if (filter.getFilterAttribute().getSchema().equalsIgnoreCase(userCustomUrn)) { //Check that the Schema name is the Custom Schema name to process the filter for custom fields
-//				LOGGER.debug("Custom");
-//				//"urn:okta:onprem_app:1.0:user:custom:departmentName eq "someValue""
-//				Map<String, JsonNode> customPropertiesMap = user.getCustomPropertiesMap();
-//				//Get the custom properties map (SchemaName -> JsonNode)
-//				if (customPropertiesMap == null || !customPropertiesMap.containsKey(userCustomUrn)) {
-//					continue;
-//				}
-//				//Get the JsonNode having all the custom properties for this schema
-//				JsonNode customNode = customPropertiesMap.get(userCustomUrn);
-//				//Check if the node has that custom field
-//				if (customNode.has(fieldName) && customNode.get(fieldName).asText().equalsIgnoreCase(value)) {
-//					userFound = true;
-//				}
-//			}
-//			if (userFound) {
-//				users.add(user);
-//			}
-//		}
 		return users;
 	}
 
@@ -792,19 +699,6 @@ public class SCIMServiceImpl implements SCIMService {
 		LOGGER.debug("[createGroup] Creating group: " + group.getDisplayName());
 		LOGGER.debug(group.toString());
 		boolean duplicate = false;
-		if (groupMap == null) {
-			//TODO: error code
-			throw new OnPremUserManagementException("o23456", "Cannot create the group. The groupMap is null");
-		}
-		for (Map.Entry<String, SCIMGroup> entry : groupMap.entrySet()) {
-			//In this example, let us assume that a group is duplicate if the displayName is the same
-			if (entry.getValue().getDisplayName().equalsIgnoreCase(displayName)) {
-				duplicate = true;
-			}
-		}
-		if (duplicate) {
-			throw new DuplicateGroupException();
-		}
 		String id = generateNextId(GROUP_RESOURCE);
 		group.setId(id);
 		try {
@@ -818,7 +712,6 @@ public class SCIMServiceImpl implements SCIMService {
 			//TODO: error code
 			throw new OnPremUserManagementException("o01234", e.getMessage(), e);
 		}
-		groupMap.put(group.getId(), group);
 		return group;
 	}
 
@@ -835,31 +728,30 @@ public class SCIMServiceImpl implements SCIMService {
 	 *
 	 */
 	public SCIMGroup updateGroup(String id, SCIMGroup group) throws OnPremUserManagementException {
-		SCIMGroup existingGroup = groupMap.get(id);
-		LOGGER.debug("[updateGroup] Updating Group: " + group.getDisplayName());
+		LOGGER.info("[updateGroup] Updating Group: " + group.getDisplayName());
 		LOGGER.debug(group.toString());
+		String searchDN = ldapGroupDn + ldapBaseDn;
+		String oldDN = "";
+		String idLookup = ldapGroupCore.get("id");
+		String ldapFilter = "(" + idLookup + "=" + id +")";
+		SCIMGroup oldGroup;
 		try {
-			if (existingGroup != null) {
-				LdapContext ctx = new InitialLdapContext(env, null);
-				Attributes attrs = constructAttrsFromGroup(group);
-				ctx.destroySubcontext(ldapGroupPre + existingGroup.getDisplayName() + "," + ldapGroupDn + ldapBaseDn);
-				LOGGER.info("[updateGroup] Group " + group.getDisplayName() + " successfully removed.");
-				ctx.createSubcontext(ldapGroupPre + group.getDisplayName() + "," + ldapGroupDn + ldapBaseDn, attrs);
-				ctx.close();
-				LOGGER.info("[updateGroup] Group " + group.getDisplayName() + " successfully re-created.");
-				groupMap.put(id, group);
-				return group;
+			LdapContext ctx = new InitialLdapContext(env, null);
+			ArrayList<Attributes> queryResults = queryLDAP(searchDN, ldapFilter);
+			if(queryResults.size() >= 1) {
+				oldGroup = constructGroupFromAttrs(queryResults.get(0));
+				oldDN = ldapGroupPre + oldGroup.getDisplayName() + "," + ldapGroupDn + ldapBaseDn;
+				ctx.destroySubcontext(oldDN);
+				LOGGER.info("[updateGroup] Group " + oldGroup.getDisplayName() + " successfully deleted from Directory Service.");
 			} else {
-				LOGGER.warn("[updateGroup] Group " + id + " not found, trying to add group.");
-				LdapContext ctx = new InitialLdapContext(env, null);
-				Attributes attrs = constructAttrsFromGroup(group);
-				ctx.createSubcontext(ldapGroupPre + group.getDisplayName() + "," + ldapGroupDn + ldapBaseDn, attrs);
-				ctx.close();
-				LOGGER.info("[updateGroup] Group " + group.getDisplayName() + " successfully created.");
-				groupMap.put(id, group);
-				return group;
+				throw new EntityNotFoundException();
 			}
-		} catch (Exception e) {
+			Attributes attrs = constructAttrsFromGroup(group);
+			ctx.createSubcontext(ldapGroupPre + group.getDisplayName() + "," + ldapGroupDn + ldapBaseDn, attrs);
+			ctx.close();
+			LOGGER.info("[updateGroup] Group " + group.getDisplayName() + " successfully re-created.");
+			return group;
+		} catch (NamingException e) {
 			handleGeneralException(e);
 			throw new OnPremUserManagementException("o01234", e.getMessage(), e);
 		}
@@ -881,20 +773,33 @@ public class SCIMServiceImpl implements SCIMService {
 	public SCIMGroupQueryResponse getGroups(PaginationProperties pageProperties) throws OnPremUserManagementException {
 		SCIMGroupQueryResponse response = new SCIMGroupQueryResponse();
 		LOGGER.info("[getGroups]");
-		int totalResults = groupMap.size();
-		if (pageProperties != null) {
-			//Set the start index
-			response.setStartIndex(pageProperties.getStartIndex());
+		try {
+			ArrayList<Attributes> unprocessedGroups = queryLDAP(ldapGroupDn + ldapBaseDn, ldapGroupFilter);
+			List<SCIMGroup> processedGroups = new ArrayList<SCIMGroup>();
+			for(int i = 0; i < unprocessedGroups.size(); i++) {
+				SCIMGroup group = constructGroupFromAttrs(unprocessedGroups.get(i));
+				processedGroups.add(group);
+			}
+			int totalResults = processedGroups.size();
+			if (pageProperties != null) {
+				//Set the start index
+				response.setStartIndex(pageProperties.getStartIndex());
+			}
+			//In this example we are setting the total results to the number of results in this page. If there are more
+			//results than the number the client asked for (pageProperties.getCount()), then you need to set the total results correctly
+			response.setTotalResults(totalResults);
+	//		List<SCIMGroup> groups = new ArrayList<SCIMGroup>();
+	//		for (String key : groupMap.keySet()) {
+	//			groups.add(groupMap.get(key));
+	//		}
+	//		//Set the actual results
+			response.setScimGroups(processedGroups);
+		} catch(NamingException e) {
+			handleGeneralException(e);
+			LOGGER.error(e.getMessage());
+			//TODO: error code
+			throw new OnPremUserManagementException("o01234", e.getMessage(), e);
 		}
-		//In this example we are setting the total results to the number of results in this page. If there are more
-		//results than the number the client asked for (pageProperties.getCount()), then you need to set the total results correctly
-		response.setTotalResults(totalResults);
-		List<SCIMGroup> groups = new ArrayList<SCIMGroup>();
-		for (String key : groupMap.keySet()) {
-			groups.add(groupMap.get(key));
-		}
-		//Set the actual results
-		response.setScimGroups(groups);
 		return response;
 	}
 
@@ -909,13 +814,24 @@ public class SCIMServiceImpl implements SCIMService {
 	 *
 	 */
 	public SCIMGroup getGroup(String id) throws OnPremUserManagementException {
-		SCIMGroup group = groupMap.get(id);
-		LOGGER.info("[getGroup] Id: " + id);
-		if (group != null) {
+		String searchDN = ldapGroupDn + ldapBaseDn;
+		String idLookup = ldapGroupCore.get("id");
+		String ldapFilter = "(" + idLookup + "=" + id +")";
+		SCIMGroup group;
+		int counter = 0;
+		try{
+			ArrayList<Attributes> queryResults = queryLDAP(searchDN, ldapFilter);
+			//should never be more than 1 entry
+			if(queryResults.size() >= 1) {
+				group = constructGroupFromAttrs(queryResults.get(0));
+				LOGGER.info("[getGroup] Group found with id: " + id);
+			} else {
+				throw new EntityNotFoundException();
+			}
 			return group;
-		} else {
-			//If you do not find a user/group by the ID, you can throw this exception.
-			throw new EntityNotFoundException();
+		} catch (NamingException e) {
+			handleGeneralException(e);
+			throw new OnPremUserManagementException("o01234", e.getMessage(), e);
 		}
 	}
 
@@ -929,19 +845,25 @@ public class SCIMServiceImpl implements SCIMService {
 	 */
 	public void deleteGroup(String id) throws OnPremUserManagementException, EntityNotFoundException {
 		LOGGER.debug("[deleteGroup] Id: " + id);
-		if (groupMap.containsKey(id)) {
-			SCIMGroup group = groupMap.remove(id);
-			try {
-				LdapContext ctx = new InitialLdapContext(env, null);
-				ctx.destroySubcontext(ldapGroupPre + group.getDisplayName() + "," + ldapGroupDn + ldapBaseDn);
-				LOGGER.info("[deleteGroup] Deleting group: " + id);
+		String searchDN = ldapGroupDn + ldapBaseDn;
+		String idLookup = ldapGroupCore.get("id");
+		String ldapFilter = "(" + idLookup + "=" + id +")";
+		SCIMGroup oldGroup;
+		try{
+			ArrayList<Attributes> queryResults = queryLDAP(searchDN, ldapFilter);
+			LdapContext ctx = new InitialLdapContext(env, null);
+			//should never be more than 1 entry
+			if(queryResults.size() >= 1) {
+				oldGroup = constructGroupFromAttrs(queryResults.get(0));
+				ctx.destroySubcontext(ldapGroupPre + oldGroup.getDisplayName() + "," + ldapGroupDn + ldapBaseDn);
+				LOGGER.info("[getGroup] Group found with id: " + id);
 				ctx.close();
-			} catch (NamingException e) {
-				handleGeneralException(e);
+			} else {
+				throw new EntityNotFoundException();
 			}
-		} else {
-			LOGGER.warn("[deleteGroup] Group: " + id + " not found, throwing exception.");
-			throw new EntityNotFoundException();
+		} catch (NamingException e) {
+			handleGeneralException(e);
+			throw new OnPremUserManagementException("o01234", e.getMessage(), e);
 		}
 	}
 
