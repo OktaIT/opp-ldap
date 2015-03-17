@@ -546,6 +546,8 @@ public class SCIMServiceImpl implements SCIMService {
 		SearchControls controls = new SearchControls();
 		controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
 		String ldapFilter = "";
+		String primaryEmailLookup = ldapUserCore.get("primaryEmail");
+		String secondaryEmailLookup = ldapUserCore.get("secondaryEmail");
 		//Loop through the sub filters to evaluate each of them.
 		//Ex : "email eq "abc@def.com""
 		for (SCIMFilter subFilter : subFilters) {
@@ -556,7 +558,7 @@ public class SCIMServiceImpl implements SCIMService {
 			//For all the users, check if any of them have this email
 			//TODO: change the filter to pull values from connector.properties
 			if (fieldName.equalsIgnoreCase("email")) {
-				ldapFilter = "(|(secondaryEmail=" + value + ")(primaryEmail=" + value + "))";
+				ldapFilter = "(|(" + primaryEmailLookup + "=" + value + ")(" + secondaryEmailLookup + "=" + value + "))";
 				NamingEnumeration<?> namingEnum = ctx.search(dn, ldapFilter, controls);
 				while (namingEnum.hasMore()) {
 					SearchResult result = (SearchResult) namingEnum.next();
@@ -1221,12 +1223,15 @@ public class SCIMServiceImpl implements SCIMService {
 	 */
 	private SCIMGroup constructGroupFromAttrs(Attributes attrs) throws NamingException {
 		//create objs/get mappings from config file.
+		String ldapFilter = "";
+		String searchDN = ldapUserDn + ldapBaseDn;
 		SCIMGroup group = new SCIMGroup();
 		String cn = attrs.get("cn").get().toString();
 		LOGGER.debug("[constructGroupFromAttrs] Constructing Group " + cn + " from Attrs.");
 		ArrayList<Membership> memberList = new ArrayList<Membership>();
 		String memberAttrLookup = ldapGroupCore.get("members");
 		Attribute memberAttr = null;
+		ArrayList<Attributes> queryResult;
 		if(memberAttrLookup != null) memberAttr = attrs.get(memberAttrLookup);
 		else LOGGER.warn("[constructGroupFromAttrs] Connector.properties did not have members entry for groupCoreMap.");
 		String idLookup = ldapGroupCore.get("id");
@@ -1240,11 +1245,17 @@ public class SCIMServiceImpl implements SCIMService {
 				String memberDn = memberAttr.get(i).toString();
 				DistinguishedName dn = new DistinguishedName(memberDn);
 				LdapRdn memberCn = dn.getLdapRdn(ldapUserPre.split("=")[0]);
-				SCIMUser result = searchUserUsernames(memberCn.getValue());
-				//searches through cache to retrieve ids for group memebers,used in SCIMGroup
-				if(result != null) {
-					Membership memHolder = new Membership(result.getId(), result.getUserName());
-					memberList.add(memHolder);
+				ldapFilter = "(" + ldapUserPre + memberCn.getValue() + ")";
+				queryResult = queryLDAP(searchDN ,ldapFilter);
+				//should only return one result
+				//TODO: check this before using data
+				if(queryResult.size() == 1) {
+					SCIMUser result = constructUserFromAttrs(queryResult.get(0));
+					//searches through cache to retrieve ids for group memebers,used in SCIMGroup
+					if(result != null) {
+						Membership memHolder = new Membership(result.getId(), result.getUserName());
+						memberList.add(memHolder);
+					}
 				}
 			}
 			group.setMembers(memberList);
