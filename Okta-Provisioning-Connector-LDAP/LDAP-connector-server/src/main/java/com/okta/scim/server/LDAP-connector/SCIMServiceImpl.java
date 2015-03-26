@@ -226,7 +226,6 @@ public class SCIMServiceImpl implements SCIMService {
 		controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
 		String filter  = "(|(secondaryEmail=sNofoX@snofox.net)(primaryEmail=snofox@snofox.net))";
 		NamingEnumeration<?> namingEnum = ctx.search(dn, filter, controls);
-		int counter = 0;
 		while (namingEnum.hasMore()) {
 			SearchResult result = (SearchResult) namingEnum.next();
 			Attributes attrs = result.getAttributes();
@@ -253,7 +252,6 @@ public class SCIMServiceImpl implements SCIMService {
 		SearchControls controls = new SearchControls();
 		controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
 		NamingEnumeration<?> namingEnum = ctx.search(dn, ldapGroupFilter, controls);
-		int counter = 0;
 		while (namingEnum.hasMore()) {
 			SearchResult result = (SearchResult) namingEnum.next();
 			Attributes attrs = result.getAttributes();
@@ -333,18 +331,10 @@ public class SCIMServiceImpl implements SCIMService {
 		try {
 			LdapContext ctx = new InitialLdapContext(env, null);
 			Attributes attrs = constructAttrsFromUser(user, false);
-//			NamingEnumeration<String> namingEnum = attrs.getIDs();
-//			while(namingEnum.hasMore()) {
-//				String key = namingEnum.next();
-//				LOGGER.debug(key);
-//			}
-//			LOGGER.debug(user.toString());
 			Name fullName = user.getName();
 			String dn = ldapUserPre + dnUsername + "," + ldapUserDn + ldapBaseDn;
 			ctx.createSubcontext(dn, attrs);
 			ctx.close();
-			//USERMAP
-//			userMap.put(user.getId(), user);
 			LOGGER.debug("[createUser] User " + user.getName().getFormattedName() + " successfully inserted into Directory Service.");
 		} catch (NamingException | InvalidDataTypeException e) {
 			handleGeneralException(e);
@@ -371,11 +361,8 @@ public class SCIMServiceImpl implements SCIMService {
 	 * @throws OnPremUserManagementException
 	 */
 	public SCIMUser updateUser(String id, SCIMUser user) throws OnPremUserManagementException, EntityNotFoundException {
-		if (userMap == null) {
-			//TODO: error code
-			throw new OnPremUserManagementException("o12345", "Cannot update the user. The userMap is null");
-		}
 		LOGGER.debug("[updateUser] Updating user: " + user.getName().getFormattedName());
+		LOGGER.debug(user.toString());
 		String dnUsername, oldDNUsername, oldDN = "";
 		String[] usernameSplit = user.getUserName().split("@");
 		SCIMUser oldUser;
@@ -392,26 +379,26 @@ public class SCIMServiceImpl implements SCIMService {
 		}
 		try {
 			LdapContext ctx = new InitialLdapContext(env, null);
+			String searchDN = ldapUserDn + ldapBaseDn;
+			dnUsername = getUserDnName(user.getUserName());
+			String idLookup = ldapUserCore.get("id");
+			String ldapFilter = "(" + idLookup + "=" + id +")";
+			ArrayList<Attributes> queryResults = queryLDAP(searchDN, ldapFilter);
+			String dn = ldapUserPre + dnUsername + "," + ldapUserDn + ldapBaseDn;
 			//TODO refactor this, also make var names consistent
-			if(user.isActive()) {
-				//TODO: detecting uname change and renaming context
-				String searchDN = ldapUserDn + ldapBaseDn;
-				dnUsername = getUserDnName(user.getUserName());
-				String idLookup = ldapUserCore.get("id");
-				String ldapFilter = "(" + idLookup + "=" + id +")";
-				ArrayList<Attributes> queryResults = queryLDAP(searchDN, ldapFilter);
-				if(queryResults.size() == 1) {
-					oldUser = constructUserFromAttrs(queryResults.get(0));
-					oldDNUsername = getUserDnName(oldUser.getUserName());
-					oldDN = ldapUserPre + oldDNUsername + "," + ldapUserDn + ldapBaseDn;
-					String dn = ldapUserPre + dnUsername + "," + ldapUserDn + ldapBaseDn;
+			if(queryResults.size() == 1) {
+				oldUser = constructUserFromAttrs(queryResults.get(0));
+				oldDNUsername = getUserDnName(oldUser.getUserName());
+				oldDN = ldapUserPre + oldDNUsername + "," + ldapUserDn + ldapBaseDn;
+				if(user.isActive()) {
+					//TODO: detecting uname change and renaming context
 					if(!dnUsername.equals(oldDNUsername)) {
+						LOGGER.info("[updateUser] User's DN in LDAP has changed from previous value, renaming...");
 						ctx.rename(oldDN, dn);
 					}
 					LOGGER.info("[updateUser] User is still active, modifying user.");
 					Attributes attrs = constructAttrsFromUser(user, true);
 					String debugKeys = "";
-					LOGGER.debug(user.toString());
 					NamingEnumeration<String> namingEnum = attrs.getIDs();
 					while(namingEnum.hasMore()) {
 						String key = namingEnum.next();
@@ -419,30 +406,15 @@ public class SCIMServiceImpl implements SCIMService {
 						Attribute attr = attrs.get(key);
 						ctx.modifyAttributes(dn, LdapContext.REPLACE_ATTRIBUTE, attrs);
 					}
-					LOGGER.debug(user.toString());
-	//				ctx.createSubcontext(dn, attrs);
 					LOGGER.debug("[updateUser] User " + user.getName().getFormattedName() + " successfully modified in Directory Service with attributes: [" + debugKeys + "]");
 					namingEnum.close();
 				} else {
-					//should probably throw an error. TODO
-					LOGGER.warn("[updateUser] Connector did not find 1 user with id: " + id + ". Don't know what to do.");
-				}
-			} else {
-				String searchDN = ldapUserDn + ldapBaseDn;
-				String idLookup = ldapUserCore.get("id");
-				String ldapFilter = "(" + idLookup + "=" + id +")";
-				int counter = 0;
-				ArrayList<Attributes> queryResults = queryLDAP(searchDN, ldapFilter);
-				if(queryResults.size() == 1) {
-					oldUser = constructUserFromAttrs(queryResults.get(0));
-					oldDNUsername = getUserDnName(oldUser.getUserName());
-					oldDN = ldapUserPre + oldDNUsername + "," + ldapUserDn + ldapBaseDn;
 					ctx.destroySubcontext(oldDN);
 					LOGGER.info("[updateUser] User " + user.getName().getFormattedName() + " successfully deleted from Directory Service.");
-				} else {
-					//should probably throw an error. TODO
-					LOGGER.warn("[updateUser] Connector did not find 1 user with id: " + id + ". Don't know what to do.");
 				}
+			} else {
+				//should probably throw an error. TODO
+				LOGGER.warn("[updateUser] Connector did not find 1 user with id: " + id + ". Don't know what to do.");
 			}
 			ctx.close();
 		} catch (InvalidDataTypeException | NamingException e) {
@@ -835,11 +807,7 @@ public class SCIMServiceImpl implements SCIMService {
 			//In this example we are setting the total results to the number of results in this page. If there are more
 			//results than the number the client asked for (pageProperties.getCount()), then you need to set the total results correctly
 			response.setTotalResults(totalResults);
-	//		List<SCIMGroup> groups = new ArrayList<SCIMGroup>();
-	//		for (String key : groupMap.keySet()) {
-	//			groups.add(groupMap.get(key));
-	//		}
-	//		//Set the actual results
+			//Set the actual results
 			response.setScimGroups(processedGroups);
 		} catch(NamingException e) {
 			handleGeneralException(e);
@@ -865,7 +833,6 @@ public class SCIMServiceImpl implements SCIMService {
 		String idLookup = ldapGroupCore.get("id");
 		String ldapFilter = "(" + idLookup + "=" + id +")";
 		SCIMGroup group;
-		int counter = 0;
 		try{
 			ArrayList<Attributes> queryResults = queryLDAP(searchDN, ldapFilter);
 			//should never be more than 1 entry
@@ -907,7 +874,6 @@ public class SCIMServiceImpl implements SCIMService {
 				ctx.close();
 			} else {
 				LOGGER.info("[deleteGroup] No Group found with id: " + id + ". I need an adult.");
-//				throw new EntityNotFoundException();
 			}
 		} catch (NamingException e) {
 			handleGeneralException(e);
@@ -1011,7 +977,6 @@ public class SCIMServiceImpl implements SCIMService {
 		//TODO: make this better
 		if(user.getPassword() != null && ldapUserCore.get("password") != null) {
 			Attribute passwd = attrs.get(ldapUserCore.get("password"));
-			//passwd.add(hashPassword(user.getPassword()));
 			passwd.add(user.getPassword());
 		}
 		user.setPassword("");
@@ -1020,6 +985,7 @@ public class SCIMServiceImpl implements SCIMService {
 			Attribute phoneNumsAttr = attrs.get(ldapUserCore.get("phoneNumbers"));
 			for(int i = 0; i < phoneNums.length; i++) {
 				PhoneNumber num = (PhoneNumber) phoneNums[i];
+				LOGGER.debug(update+" "+num.getValue());
 				phoneNumsAttr.add(num.getValue());
 			}
 			attrs.put(phoneNumsAttr);
@@ -1066,7 +1032,8 @@ public class SCIMServiceImpl implements SCIMService {
 			configLine = ldapUserCustom.get(keys[i]);
 			parentNames = emptyArr;
 			if(configLine.length > 3) parentNames = Arrays.copyOfRange(configLine, 3, configLine.length);
-			customAttr = new BasicAttribute(keys[i]);
+			if(attrs.get(keys[i]) != null) customAttr = attrs.get(keys[i]);
+			else customAttr = new BasicAttribute(keys[i]);
 			if(configLine[0].equals("int"))
 				value = user.getCustomIntValue(configLine[1], configLine[2], parentNames);
 			else if(configLine[0].equals("boolean"))
@@ -1395,7 +1362,6 @@ public class SCIMServiceImpl implements SCIMService {
 		return value;
 	}
 
-
 	private ArrayList<Attributes> queryLDAP(String dn, String filter) throws NamingException {
 		ArrayList<Attributes> results = new ArrayList<Attributes>();
 		LdapContext ctx = new InitialLdapContext(env, null);
@@ -1403,7 +1369,6 @@ public class SCIMServiceImpl implements SCIMService {
 		SearchControls controls = new SearchControls();
 		controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
 		NamingEnumeration<?> namingEnum = ctx.search(dn, filter, controls);
-		int counter = 0;
 		while (namingEnum.hasMore()) {
 			SearchResult result = (SearchResult) namingEnum.next();
 			Attributes attrs = result.getAttributes();
@@ -1413,14 +1378,4 @@ public class SCIMServiceImpl implements SCIMService {
 		namingEnum.close();
 		return results;
 	}
-
-	private void renameLDAPObj(String oldName, String newName) throws NamingException {
-		LdapContext ctx = new InitialLdapContext(env, null);
-		ctx.setRequestControls(null);
-		SearchControls controls = new SearchControls();
-		controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
-		ctx.rename(oldName, newName);
-		ctx.close();
-	}
 }
-
