@@ -392,25 +392,41 @@ public class SCIMServiceImpl implements SCIMService {
 		}
 		try {
 			LdapContext ctx = new InitialLdapContext(env, null);
+			//TODO refactor this, also make var names consistent
 			if(user.isActive()) {
 				//TODO: detecting uname change and renaming context
+				String searchDN = ldapUserDn + ldapBaseDn;
 				dnUsername = getUserDnName(user.getUserName());
-				String dn = ldapUserPre + dnUsername + "," + ldapUserDn + ldapBaseDn;
-				LOGGER.info("[updateUser] User is still active, modifying user.");
-				Attributes attrs = constructAttrsFromUser(user, true);
-				String debugKeys = "";
-				LOGGER.debug(user.toString());
-				NamingEnumeration<String> namingEnum = attrs.getIDs();
-				while(namingEnum.hasMore()) {
-					String key = namingEnum.next();
-					debugKeys += key + ", ";
-					LOGGER.debug(key);
-					Attribute attr = attrs.get(key);
-					ctx.modifyAttributes(dn, LdapContext.REPLACE_ATTRIBUTE, attrs);
+				String idLookup = ldapUserCore.get("id");
+				String ldapFilter = "(" + idLookup + "=" + id +")";
+				ArrayList<Attributes> queryResults = queryLDAP(searchDN, ldapFilter);
+				if(queryResults.size() == 1) {
+					oldUser = constructUserFromAttrs(queryResults.get(0));
+					oldDNUsername = getUserDnName(oldUser.getUserName());
+					oldDN = ldapUserPre + oldDNUsername + "," + ldapUserDn + ldapBaseDn;
+					String dn = ldapUserPre + dnUsername + "," + ldapUserDn + ldapBaseDn;
+					if(!dnUsername.equals(oldDNUsername)) {
+						ctx.rename(oldDN, dn);
+					}
+					LOGGER.info("[updateUser] User is still active, modifying user.");
+					Attributes attrs = constructAttrsFromUser(user, true);
+					String debugKeys = "";
+					LOGGER.debug(user.toString());
+					NamingEnumeration<String> namingEnum = attrs.getIDs();
+					while(namingEnum.hasMore()) {
+						String key = namingEnum.next();
+						debugKeys += key + ", ";
+						Attribute attr = attrs.get(key);
+						ctx.modifyAttributes(dn, LdapContext.REPLACE_ATTRIBUTE, attrs);
+					}
+					LOGGER.debug(user.toString());
+	//				ctx.createSubcontext(dn, attrs);
+					LOGGER.debug("[updateUser] User " + user.getName().getFormattedName() + " successfully modified in Directory Service with attributes: [" + debugKeys + "]");
+					namingEnum.close();
+				} else {
+					//should probably throw an error. TODO
+					LOGGER.warn("[updateUser] Connector did not find 1 user with id: " + id + ". Don't know what to do.");
 				}
-				LOGGER.debug(user.toString());
-//				ctx.createSubcontext(dn, attrs);
-				LOGGER.debug("[updateUser] User " + user.getName().getFormattedName() + " successfully modified in Directory Service with attributes: [" + debugKeys + "]");
 			} else {
 				String searchDN = ldapUserDn + ldapBaseDn;
 				String idLookup = ldapUserCore.get("id");
@@ -1396,6 +1412,15 @@ public class SCIMServiceImpl implements SCIMService {
 		ctx.close();
 		namingEnum.close();
 		return results;
+	}
+
+	private void renameLDAPObj(String oldName, String newName) throws NamingException {
+		LdapContext ctx = new InitialLdapContext(env, null);
+		ctx.setRequestControls(null);
+		SearchControls controls = new SearchControls();
+		controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
+		ctx.rename(oldName, newName);
+		ctx.close();
 	}
 }
 
