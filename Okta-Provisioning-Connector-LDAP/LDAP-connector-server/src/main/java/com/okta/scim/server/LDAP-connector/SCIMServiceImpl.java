@@ -404,6 +404,7 @@ public class SCIMServiceImpl implements SCIMService {
 						String key = namingEnum.next();
 						debugKeys += key + ", ";
 						Attribute attr = attrs.get(key);
+						//if(attr.size() > 0) LOGGER.debug(key + " " + attr.get());
 						ctx.modifyAttributes(dn, LdapContext.REPLACE_ATTRIBUTE, attrs);
 					}
 					LOGGER.debug("[updateUser] User " + user.getName().getFormattedName() + " successfully modified in Directory Service with attributes: [" + debugKeys + "]");
@@ -985,7 +986,6 @@ public class SCIMServiceImpl implements SCIMService {
 			Attribute phoneNumsAttr = attrs.get(ldapUserCore.get("phoneNumbers"));
 			for(int i = 0; i < phoneNums.length; i++) {
 				PhoneNumber num = (PhoneNumber) phoneNums[i];
-				LOGGER.debug(update+" "+num.getValue());
 				phoneNumsAttr.add(num.getValue());
 			}
 			attrs.put(phoneNumsAttr);
@@ -1026,7 +1026,7 @@ public class SCIMServiceImpl implements SCIMService {
 		String[] emptyArr = new String[0];
 		String[] parentNames = emptyArr;
 		Attribute customAttr;
-		Object value = "";
+		Object value;
 		//For each custom attribute mapping in properties, get the appropriate custom value and put it in an Attribute obj
 		for(int i = 0; i < keys.length; i++) {
 			configLine = ldapUserCustom.get(keys[i]);
@@ -1044,7 +1044,7 @@ public class SCIMServiceImpl implements SCIMService {
 				value = user.getCustomDoubleValue(configLine[1], configLine[2], parentNames);
 			else
 				throw new OnPremUserManagementException("o12345", "Unexpected type for Custom attrs in config: " + Arrays.toString(configLine));
-			if(value != null) {
+			if(value != null && !value.equals("")) {
 				customAttr.add(value.toString());
 				attrs.put(customAttr);
 			} else if(update) {
