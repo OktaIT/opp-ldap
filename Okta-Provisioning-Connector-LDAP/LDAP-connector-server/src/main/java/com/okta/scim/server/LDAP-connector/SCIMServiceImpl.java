@@ -138,10 +138,6 @@ public class SCIMServiceImpl implements SCIMService {
 		env.put(Context.SECURITY_CREDENTIALS, ldapSecurityCredentials);
 		nextUserId = 100;
 		nextGroupId = 1000;
-//		initUsers();
-//		LOGGER.info("[afterCreation] Imported users from LDAP.");
-//		initGroups();
-//		LOGGER.info("[afterCreation] Imported groups from LDAP.");
 		LOGGER.info("Connector initialized and waiting for tasks.");
 	}
 
@@ -208,58 +204,6 @@ public class SCIMServiceImpl implements SCIMService {
 			handleGeneralException(e);
 			throw e;
 		}
-	}
-
-	/**
-	 * Helper method that is called when connector is started.
-	 * Rebuilds Users in cache if Users exist in Ldap already.
-	 * Not necessary for us, but nice to be able to rebuild cache
-	 * when testing.
-	 *
-	 * @throws NamingException
-	 */
-	private void initUsers() throws NamingException {
-		LdapContext ctx = new InitialLdapContext(env, null);
-		String dn = ldapUserDn + ldapBaseDn;
-		ctx.setRequestControls(null);
-		SearchControls controls = new SearchControls();
-		controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
-		String filter  = "(|(secondaryEmail=sNofoX@snofox.net)(primaryEmail=snofox@snofox.net))";
-		NamingEnumeration<?> namingEnum = ctx.search(dn, filter, controls);
-		while (namingEnum.hasMore()) {
-			SearchResult result = (SearchResult) namingEnum.next();
-			Attributes attrs = result.getAttributes();
-			SCIMUser user = constructUserFromAttrs(attrs);
-			LOGGER.debug("TESTING TESTING: " + user);
-//			userMap.put(user.getId(), user);
-		}
-		ctx.close();
-		namingEnum.close();
-	}
-
-	/**
-	 * Helper method that is called when connector is started.
-	 * Rebuilds Groups in cache if Groups exist in Ldap already.
-	 * Not necessary for us, but nice to be able to rebuild cache
-	 * when testing.
-	 *
-	 * @throws NamingException
-	 */
-	private void initGroups() throws NamingException {
-		LdapContext ctx = new InitialLdapContext(env, null);
-		String dn = ldapGroupDn + ldapBaseDn;
-		ctx.setRequestControls(null);
-		SearchControls controls = new SearchControls();
-		controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
-		NamingEnumeration<?> namingEnum = ctx.search(dn, ldapGroupFilter, controls);
-		while (namingEnum.hasMore()) {
-			SearchResult result = (SearchResult) namingEnum.next();
-			Attributes attrs = result.getAttributes();
-			SCIMGroup group = constructGroupFromAttrs(attrs);
-			groupMap.put(group.getId(), group);
-		}
-		ctx.close();
-		namingEnum.close();
 	}
 
 	/**
