@@ -1,5 +1,5 @@
 Manifest-Version: 1.0
 Implementation-Title: scim-server-LDAP
-Implementation-Version: 01.01.00-SNAPSHOT
+Implementation-Version: 01.02.00-SNAPSHOT
 Implementation-Vendor-Id: okta
 Created-By: Apache Maven

@@ -16,6 +16,7 @@ import com.okta.scim.util.model.SCIMFilter;
 import com.okta.scim.util.model.SCIMFilterAttribute;
 import com.okta.scim.util.model.SCIMFilterType;
 import com.okta.scim.util.model.SCIMGroup;
+import com.okta.scim.util.model.SCIMResource;
 import com.okta.scim.util.model.SCIMGroupQueryResponse;
 import com.okta.scim.util.model.SCIMUser;
 import com.okta.scim.util.model.SCIMUserQueryResponse;
@@ -32,7 +33,9 @@ import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.commons.configuration.ConfigurationException;
 
+import java.util.HashSet;
 import java.lang.Thread;
+import java.lang.Object;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringWriter;
@@ -61,6 +64,7 @@ import javax.naming.directory.Attributes;
 import javax.naming.directory.Attribute;
 import javax.naming.directory.BasicAttributes;
 import javax.naming.directory.BasicAttribute;
+import javax.naming.directory.ModificationItem;
 import javax.naming.directory.SearchResult;
 import javax.naming.directory.InvalidAttributeValueException;
 import javax.naming.NamingEnumeration;
@@ -134,10 +138,6 @@ public class SCIMServiceImpl implements SCIMService {
 		env.put(Context.SECURITY_CREDENTIALS, ldapSecurityCredentials);
 		nextUserId = 100;
 		nextGroupId = 1000;
-		initUsers();
-		LOGGER.info("[afterCreation] Imported users from LDAP.");
-		initGroups();
-		LOGGER.info("[afterCreation] Imported groups from LDAP.");
 		LOGGER.info("Connector initialized and waiting for tasks.");
 	}
 
@@ -204,58 +204,6 @@ public class SCIMServiceImpl implements SCIMService {
 			handleGeneralException(e);
 			throw e;
 		}
-	}
-
-	/**
-	 * Helper method that is called when connector is started.
-	 * Rebuilds Users in cache if Users exist in Ldap already.
-	 * Not necessary for us, but nice to be able to rebuild cache
-	 * when testing.
-	 *
-	 * @throws NamingException
-	 */
-	private void initUsers() throws NamingException {
-		LdapContext ctx = new InitialLdapContext(env, null);
-		String dn = ldapUserDn + ldapBaseDn;
-		ctx.setRequestControls(null);
-		SearchControls controls = new SearchControls();
-		controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
-		NamingEnumeration<?> namingEnum = ctx.search(dn, ldapUserFilter, controls);
-		int counter = 0;
-		while (namingEnum.hasMore()) {
-			SearchResult result = (SearchResult) namingEnum.next();
-			Attributes attrs = result.getAttributes();
-			SCIMUser user = constructUserFromAttrs(attrs);
-			userMap.put(user.getId(), user);
-		}
-		ctx.close();
-		namingEnum.close();
-	}
-
-	/**
-	 * Helper method that is called when connector is started.
-	 * Rebuilds Groups in cache if Groups exist in Ldap already.
-	 * Not necessary for us, but nice to be able to rebuild cache
-	 * when testing.
-	 *
-	 * @throws NamingException
-	 */
-	private void initGroups() throws NamingException {
-		LdapContext ctx = new InitialLdapContext(env, null);
-		String dn = ldapGroupDn + ldapBaseDn;
-		ctx.setRequestControls(null);
-		SearchControls controls = new SearchControls();
-		controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
-		NamingEnumeration<?> namingEnum = ctx.search(dn, ldapGroupFilter, controls);
-		int counter = 0;
-		while (namingEnum.hasMore()) {
-			SearchResult result = (SearchResult) namingEnum.next();
-			Attributes attrs = result.getAttributes();
-			SCIMGroup group = constructGroupFromAttrs(attrs);
-			groupMap.put(group.getId(), group);
-		}
-		ctx.close();
-		namingEnum.close();
 	}
 
 	/**
@@ -326,13 +274,11 @@ public class SCIMServiceImpl implements SCIMService {
 		dnUsername = getUserDnName(user.getUserName());
 		try {
 			LdapContext ctx = new InitialLdapContext(env, null);
-			Attributes attrs = constructAttrsFromUser(user);
-			LOGGER.debug(user.toString());
+			Attributes attrs = constructAttrsFromUser(user, false);
 			Name fullName = user.getName();
 			String dn = ldapUserPre + dnUsername + "," + ldapUserDn + ldapBaseDn;
 			ctx.createSubcontext(dn, attrs);
 			ctx.close();
-			userMap.put(user.getId(), user);
 			LOGGER.debug("[createUser] User " + user.getName().getFormattedName() + " successfully inserted into Directory Service.");
 		} catch (NamingException | InvalidDataTypeException e) {
 			handleGeneralException(e);
@@ -359,55 +305,66 @@ public class SCIMServiceImpl implements SCIMService {
 	 * @throws OnPremUserManagementException
 	 */
 	public SCIMUser updateUser(String id, SCIMUser user) throws OnPremUserManagementException, EntityNotFoundException {
-		if (userMap == null) {
-			//TODO: error code
-			throw new OnPremUserManagementException("o12345", "Cannot update the user. The userMap is null");
-		}
 		LOGGER.debug("[updateUser] Updating user: " + user.getName().getFormattedName());
-		SCIMUser existingUser = userMap.get(id);
-		String dnUsername;
+		LOGGER.debug(user.toString());
+		String dnUsername, oldDNUsername, oldDN = "";
 		String[] usernameSplit = user.getUserName().split("@");
-		if (existingUser != null) {
-			Name fullName = existingUser.getName();
-			//TODO: throw this in a helper
-			if(usernameSplit.length != 2) {
-				//TODO: error code
-				LOGGER.warn("[createUser] Username: " +user.getUserName() + " can only contain one @.");
-				throw new OnPremUserManagementException("o01234", "Username can only contain one @.");
-			}
-			if(useWhitelist && (!usernameWhitelist.contains(usernameSplit[1]))) {
-				//TODO: error code
-				LOGGER.warn("[createUser] Username: " +user.getUserName() + " is not in the whitelist.");
-				throw new OnPremUserManagementException("o01234", "Username domain is not in whitelist.");
-			}
+		SCIMUser oldUser;
+		//TODO: throw this in a helper
+		if(usernameSplit.length != 2) {
+			//TODO: error code
+			LOGGER.warn("[updateUser] Username: " +user.getUserName() + " can only contain one @.");
+			throw new OnPremUserManagementException("o01234", "Username can only contain one @.");
+		}
+		if(useWhitelist && (!usernameWhitelist.contains(usernameSplit[1]))) {
+			//TODO: error code
+			LOGGER.warn("[updateUser] Username: " +user.getUserName() + " is not in the whitelist.");
+			throw new OnPremUserManagementException("o01234", "Username domain is not in whitelist.");
+		}
+		try {
+			LdapContext ctx = new InitialLdapContext(env, null);
+			String searchDN = ldapUserDn + ldapBaseDn;
 			dnUsername = getUserDnName(user.getUserName());
-			userMap.remove(id);
-			try {
-				LdapContext ctx = new InitialLdapContext(env, null);
-				String dn = ldapUserPre + dnUsername + "," + ldapUserDn + ldapBaseDn;
-				ctx.destroySubcontext(dn);
-
-				LOGGER.info("[updateUser] User " + user.getName().getFormattedName() + " successfully deleted from Directory Service.");
+			String idLookup = ldapUserCore.get("id");
+			String ldapFilter = "(" + idLookup + "=" + id +")";
+			ArrayList<Attributes> queryResults = queryLDAP(searchDN, ldapFilter);
+			String dn = ldapUserPre + dnUsername + "," + ldapUserDn + ldapBaseDn;
+			//TODO refactor this, also make var names consistent
+			if(queryResults.size() == 1) {
+				oldUser = constructUserFromAttrs(queryResults.get(0));
+				oldDNUsername = getUserDnName(oldUser.getUserName());
+				oldDN = ldapUserPre + oldDNUsername + "," + ldapUserDn + ldapBaseDn;
 				if(user.isActive()) {
-					LOGGER.info("[updateUser] User is still active, re-adding user.");
-					Attributes attrs = constructAttrsFromUser(user);
-			LOGGER.debug(user.toString());
-					ctx.createSubcontext(dn, attrs);
-					userMap.put(id, user);
-					//this.createUser(user);
-					LOGGER.debug("[updateUser] User " + user.getName().getFormattedName() + " successfully inserted into Directory Service.");
+					//TODO: detecting uname change and renaming context
+					if(!dnUsername.equals(oldDNUsername)) {
+						LOGGER.info("[updateUser] User's DN in LDAP has changed from previous value, renaming...");
+						ctx.rename(oldDN, dn);
+					}
+					LOGGER.info("[updateUser] User is still active, modifying user.");
+					Attributes attrs = constructAttrsFromUser(user, true);
+					String debugKeys = "";
+					NamingEnumeration<String> namingEnum = attrs.getIDs();
+					while(namingEnum.hasMore()) {
+						String key = namingEnum.next();
+						debugKeys += key + ", ";
+						Attribute attr = attrs.get(key);
+						//if(attr.size() > 0) LOGGER.debug(key + " " + attr.get());
+						ctx.modifyAttributes(dn, LdapContext.REPLACE_ATTRIBUTE, attrs);
+					}
+					LOGGER.debug("[updateUser] User " + user.getName().getFormattedName() + " successfully modified in Directory Service with attributes: [" + debugKeys + "]");
+					namingEnum.close();
+				} else {
+					ctx.destroySubcontext(oldDN);
+					LOGGER.info("[updateUser] User " + user.getName().getFormattedName() + " successfully deleted from Directory Service.");
 				}
-				ctx.close();
-			} catch (InvalidDataTypeException | NamingException e) {
-				handleGeneralException(e);
-				throw new OnPremUserManagementException("o01234", e.getMessage(), e);
+			} else {
+				//should probably throw an error. TODO
+				LOGGER.warn("[updateUser] Connector did not find 1 user with id: " + id + ". Don't know what to do.");
 			}
-		} else {
-			LOGGER.warn("[updateUser] User " + user.getName().getFormattedName() + " not found, if user is still active, re-adding.");
-			throw new OnPremUserManagementException("o01234", "User " + id + " not found when trying to perform update");
-//			if(user.isActive()) {
-//				this.createUser(user);
-//			}
+			ctx.close();
+		} catch (InvalidDataTypeException | NamingException e) {
+			handleGeneralException(e);
+			throw new OnPremUserManagementException("o01234", e.getMessage(), e);
 		}
 		return user;
 	}
@@ -428,36 +385,49 @@ public class SCIMServiceImpl implements SCIMService {
 	public SCIMUserQueryResponse getUsers(PaginationProperties pageProperties, SCIMFilter filter) throws OnPremUserManagementException {
 		List<SCIMUser> users = new ArrayList<SCIMUser>();
 		LOGGER.debug("[getUsers(PaginationProperties, SCIMFilter)]");
-		if (filter != null) {
-			//Get users based on a filter
-			users = getUserByFilter(filter);
-			//Example to show how to construct a SCIMUserQueryResponse and how to set stuff.
-			SCIMUserQueryResponse response = new SCIMUserQueryResponse();
-			//The total results in this case is set to the number of users. But it may be possible that
-			//there are more results than what is being returned => totalResults > users.size();
-			response.setTotalResults(users.size());
-			//Actual results which need to be returned
-			response.setScimUsers(users);
-			//The input has some page properties => Set the start index.
-			if (pageProperties != null) {
-				response.setStartIndex(pageProperties.getStartIndex());
+		try {
+			if (filter != null) {
+				//Get users based on a filter
+				users = getUserByFilter(filter);
+				//Example to show how to construct a SCIMUserQueryResponse and how to set stuff.
+				SCIMUserQueryResponse response = new SCIMUserQueryResponse();
+				//The total results in this case is set to the number of users. But it may be possible that
+				//there are more results than what is being returned => totalResults > users.size();
+				response.setTotalResults(users.size());
+				//Actual results which need to be returned
+				response.setScimUsers(users);
+				//The input has some page properties => Set the start index.
+				if (pageProperties != null) {
+					response.setStartIndex(pageProperties.getStartIndex());
+				}
+				LOGGER.debug("[getUser] Filtered results Returned: " + response.toString());
+				return response;
+			} else {
+				return getUsers(pageProperties);
 			}
-			LOGGER.debug("[getUser] Filtered results Returned: " + response.toString());
-			return response;
-		} else {
-			return getUsers(pageProperties);
+		} catch (NamingException e) {
+			handleGeneralException(e);
+			LOGGER.error(e.getMessage());
+			//TODO: error code
+			throw new OnPremUserManagementException("o01234", e.getMessage(), e);
 		}
 	}
 
-	private SCIMUserQueryResponse getUsers(PaginationProperties pageProperties) {
+	private SCIMUserQueryResponse getUsers(PaginationProperties pageProperties) throws NamingException {
 		SCIMUserQueryResponse response = new SCIMUserQueryResponse();
 		LOGGER.debug("[getUsers(PaginationProperties)] UserMap size: " + userMap.size());
-		if (userMap == null) {
-			//Note that the Error Code "o34567" is arbitrary - You can use any code that you want to.
-			//TODO: error code
-			throw new OnPremUserManagementException("o34567", "Cannot get the users. The userMap is null");
+//		if (userMap == null) {
+//			//Note that the Error Code "o34567" is arbitrary - You can use any code that you want to.
+//			//TODO: error code
+//			throw new OnPremUserManagementException("o34567", "Cannot get the users. The userMap is null");
+//		}
+		ArrayList<Attributes> unprocessedUsers = queryLDAP(ldapUserDn + ldapBaseDn, ldapUserFilter);
+		List<SCIMUser> processedUsers = new ArrayList<SCIMUser>();
+		for(int i = 0; i < unprocessedUsers.size(); i++) {
+			SCIMUser user = constructUserFromAttrs(unprocessedUsers.get(i));
+			processedUsers.add(user);
 		}
-		int totalResults = userMap.size();
+		int totalResults = processedUsers.size();
 		if (pageProperties != null) {
 			//Set the start index to the response.
 			response.setStartIndex(pageProperties.getStartIndex());
@@ -465,12 +435,8 @@ public class SCIMServiceImpl implements SCIMService {
 		//In this example we are setting the total results to the number of results in this page. If there are more
 		//results than the number the client asked for (pageProperties.getCount()), then you need to set the total results correctly
 		response.setTotalResults(totalResults);
-		List<SCIMUser> users = new ArrayList<SCIMUser>();
-		for (String key : userMap.keySet()) {
-			users.add(userMap.get(key));
-		}
 		//Set the actual results
-		response.setScimUsers(users);
+		response.setScimUsers(processedUsers);
 		return response;
 	}
 
@@ -495,15 +461,18 @@ public class SCIMServiceImpl implements SCIMService {
 	 * @param filter the SCIM filter
 	 * @return list of users that match the filter
 	 */
-	private List<SCIMUser> getUserByFilter(SCIMFilter filter) {
+	private List<SCIMUser> getUserByFilter(SCIMFilter filter) throws NamingException {
 		List<SCIMUser> users = new ArrayList<SCIMUser>();
+
 		LOGGER.debug("[getUserByFilter]");
 		SCIMFilterType filterType = filter.getFilterType();
 		if (filterType.equals(SCIMFilterType.EQUALS)) {
 			//Example to show how to deal with an Equality filter
+			LOGGER.debug("Equality Filter");
 			users = getUsersByEqualityFilter(filter);
 		} else if (filterType.equals(SCIMFilterType.OR)) {
 			//Example to show how to deal with an OR filter containing multiple sub-filters.
+			LOGGER.debug("OR Filter");
 			users = getUsersByOrFilter(filter);
 		} else {
 			LOGGER.error("The Filter " + filter + " contains a condition that is not supported");
@@ -517,12 +486,20 @@ public class SCIMServiceImpl implements SCIMService {
 	 * @param filter the OR filter with a set of sub filters expressions
 	 * @return list of users that match any of the filters
 	 */
-	private List<SCIMUser> getUsersByOrFilter(SCIMFilter filter) {
+	private List<SCIMUser> getUsersByOrFilter(SCIMFilter filter) throws NamingException {
 		//An OR filter would contain a list of filter expression. Each expression is a SCIMFilter by itself.
 		//Ex : "email eq "abc@def.com" OR email eq "def@abc.com""
 		List<SCIMFilter> subFilters = filter.getFilterExpressions();
-		LOGGER.info("OR Filter : " + subFilters);
+		LOGGER.info("[getUsersByOrFilter] Searching on OR Filter : " + subFilters);
 		List<SCIMUser> users = new ArrayList<SCIMUser>();
+		LdapContext ctx = new InitialLdapContext(env, null);
+		String dn = ldapUserDn + ldapBaseDn;
+		ctx.setRequestControls(null);
+		SearchControls controls = new SearchControls();
+		controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
+		String ldapFilter = "";
+		String primaryEmailLookup = ldapUserCore.get("primaryEmail");
+		String secondaryEmailLookup = ldapUserCore.get("secondaryEmail");
 		//Loop through the sub filters to evaluate each of them.
 		//Ex : "email eq "abc@def.com""
 		for (SCIMFilter subFilter : subFilters) {
@@ -531,27 +508,21 @@ public class SCIMServiceImpl implements SCIMService {
 			//Value (abc@def.com)
 			String value = subFilter.getFilterValue();
 			//For all the users, check if any of them have this email
-			for (Map.Entry<String, SCIMUser> entry : userMap.entrySet()) {
-				boolean userFound = false;
-				SCIMUser user = entry.getValue();
-				//In this example, since we assume that the field name configured with Okta is "email", checking if we got the field name as "email" here
-				if (fieldName.equalsIgnoreCase("email")) {
-					//Get the user's emails and check if the value is the same as in the filter
-					Collection<Email> emails = user.getEmails();
-					if (emails != null) {
-						for (Email email : emails) {
-							if (email.getValue().equalsIgnoreCase(value)) {
-								userFound = true;
-								break;
-							}
-						}
-					}
-				}
-				if (userFound) {
+			//TODO: change the filter to pull values from connector.properties
+			if (fieldName.equalsIgnoreCase("email")) {
+				ldapFilter = "(|(" + primaryEmailLookup + "=" + value + ")(" + secondaryEmailLookup + "=" + value + "))";
+				NamingEnumeration<?> namingEnum = ctx.search(dn, ldapFilter, controls);
+				while (namingEnum.hasMore()) {
+					SearchResult result = (SearchResult) namingEnum.next();
+					Attributes attrs = result.getAttributes();
+					SCIMUser user = constructUserFromAttrs(attrs);
 					users.add(user);
 				}
+				ctx.close();
+				namingEnum.close();
 			}
 		}
+		LOGGER.info("[getUsersByOrFilter] Users found: " + users.size());
 		return users;
 	}
 
@@ -562,61 +533,77 @@ public class SCIMServiceImpl implements SCIMService {
 	 * @param filter the EQUALS filter
 	 * @return list of users that match the filter
 	 */
-	private List<SCIMUser> getUsersByEqualityFilter(SCIMFilter filter) {
+	private List<SCIMUser> getUsersByEqualityFilter(SCIMFilter filter) throws NamingException {
 		String fieldName = filter.getFilterAttribute().getAttributeName();
 		String value = filter.getFilterValue();
+		LdapContext ctx = new InitialLdapContext(env, null);
+		String dn = ldapUserDn + ldapBaseDn;
+		ctx.setRequestControls(null);
+		SearchControls controls = new SearchControls();
+		controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
+		String ldapFilter = "";
 		LOGGER.info("Equality Filter : Field Name [ " + fieldName + " ]. Value [ " + value + " ]");
 		List<SCIMUser> users = new ArrayList<SCIMUser>();
-		//A basic example of how to return users that match the criteria
-		for (Map.Entry<String, SCIMUser> entry : userMap.entrySet()) {
-			SCIMUser user = entry.getValue();
-			boolean userFound = false;
-			//Ex : "userName eq "someUserName""
-			if (fieldName.equalsIgnoreCase("userName")) {
-				String userName = user.getUserName();
-				if (userName != null && userName.equals(value)) {
-					userFound = true;
-				}
-			} else if (fieldName.equalsIgnoreCase("id")) {
-				//"id eq "someId""
-				String id = user.getId();
-				if (id != null && id.equals(value)) {
-					userFound = true;
-				}
-			} else if (fieldName.equalsIgnoreCase("name")) {
-				String subFieldName = filter.getFilterAttribute().getSubAttributeName();
-				Name name = user.getName();
-				if (name == null || subFieldName == null) {
-					continue;
-				}
+		if (fieldName.equalsIgnoreCase("userName")) {
+			LOGGER.debug("Username");
+			String usernameLookup = ldapUserCore.get("userName");
+			if(usernameLookup != null) {
+				ldapFilter = "(" + usernameLookup + "=" + value + ")";
+			}
+			else {
+				LOGGER.warn("[getUsersByEqualityFilter] Connector.properties did not have a userName entry for userCoreMap.");
+			}
+		} else if (fieldName.equalsIgnoreCase("id")) {
+			LOGGER.debug("ID");
+			String idLookup = ldapUserCore.get("id");
+			if(idLookup != null) {
+				ldapFilter = "(" + idLookup + "=" + value + ")";
+			}
+			else {
+				LOGGER.warn("[getUsersByEqualityFilter] Connector.properties did not have a id entry for userCoreMap.");
+			}
+		} else if (fieldName.equalsIgnoreCase("name")) {
+			LOGGER.debug("name");
+			String subFieldName = filter.getFilterAttribute().getSubAttributeName();
+			if (subFieldName != null) {
 				if (subFieldName.equalsIgnoreCase("familyName")) {
 					//"name.familyName eq "someFamilyName""
-					String familyName = name.getLastName();
-					if (familyName != null && familyName.equals(value)) {
-						userFound = true;
+					String familyNameLookup = ldapUserCore.get("familyName");
+					if(familyNameLookup != null) {
+						ldapFilter = "(" + familyNameLookup + "=" + value + ")";
+					}
+					else {
+						LOGGER.warn("[getUsersByEqualityFilter] Connector.properties did not have a familyName entry for userCoreMap.");
 					}
 				} else if (subFieldName.equalsIgnoreCase("givenName")) {
 					//"name.givenName eq "someGivenName""
-					String givenName = name.getFirstName();
-					if (givenName != null && givenName.equals(value)) {
-						userFound = true;
+					String givenNameLookup = ldapUserCore.get("givenName");
+					if(givenNameLookup != null) {
+						ldapFilter = "(" + givenNameLookup + "=" + value + ")";
+					}
+					else {
+						LOGGER.warn("[getUsersByEqualityFilter] Connector.properties did not have a givenName entry for userCoreMap.");
 					}
 				}
-			} else if (filter.getFilterAttribute().getSchema().equalsIgnoreCase(userCustomUrn)) { //Check that the Schema name is the Custom Schema name to process the filter for custom fields
-				//"urn:okta:onprem_app:1.0:user:custom:departmentName eq "someValue""
-				Map<String, JsonNode> customPropertiesMap = user.getCustomPropertiesMap();
-				//Get the custom properties map (SchemaName -> JsonNode)
-				if (customPropertiesMap == null || !customPropertiesMap.containsKey(userCustomUrn)) {
-					continue;
-				}
-				//Get the JsonNode having all the custom properties for this schema
-				JsonNode customNode = customPropertiesMap.get(userCustomUrn);
-				//Check if the node has that custom field
-				if (customNode.has(fieldName) && customNode.get(fieldName).asText().equalsIgnoreCase(value)) {
-					userFound = true;
+			}
+		} else if (filter.getFilterAttribute().getSchema().equalsIgnoreCase(userCustomUrn)) { //Check that the Schema name is the Custom Schema name to process the filter for custom fields
+			LOGGER.debug("Custom");
+			String[] keys = ldapUserCustom.keySet().toArray(new String[ldapUserCustom.size()]);
+			String[] configLine;
+			//"urn:okta:onprem_app:1.0:user:custom:departmentName eq "someValue""
+			//Get the custom properties map (SchemaName -> JsonNode)
+			for(int i = 0; i < keys.length; i++) {
+				configLine = ldapUserCustom.get(keys[i]);
+				if(configLine[2].equalsIgnoreCase(fieldName)) {
+					ldapFilter = "(" + keys[i] + "=" + value + ")";
+					break;
 				}
 			}
-			if (userFound) {
+		}
+		if(!ldapFilter.isEmpty()) {
+			ArrayList<Attributes> queryResults = queryLDAP(dn, ldapFilter);
+			for(int i = 0; i < queryResults.size(); i++) {
+				SCIMUser user = constructUserFromAttrs(queryResults.get(i));
 				users.add(user);
 			}
 		}
@@ -635,13 +622,23 @@ public class SCIMServiceImpl implements SCIMService {
 	 */
 	@Override
 	public SCIMUser getUser(String id) throws OnPremUserManagementException, EntityNotFoundException {
-		SCIMUser user = userMap.get(id);
 		LOGGER.info("[getUser] Id: " + id);
-		if (user != null) {
-			return user;
-		} else {
-			//If you do not find a user/group by the ID, you can throw this exception.
-			throw new EntityNotFoundException();
+		String searchDN = ldapUserDn + ldapBaseDn;
+		String idLookup = ldapUserCore.get("id");
+		String ldapFilter = "(" + idLookup + "=" + id +")";
+		SCIMUser user;
+		try {
+			ArrayList<Attributes> queryResults = queryLDAP(searchDN, ldapFilter);
+			if(queryResults.size() >= 1) {
+				user = constructUserFromAttrs(queryResults.get(0));
+				LOGGER.info("[getUser] User found with id: " + id);
+				return user;
+			} else {
+				throw new EntityNotFoundException();
+			}
+		} catch (NamingException e) {
+			handleGeneralException(e);
+			throw new OnPremUserManagementException("o01234", e.getMessage(), e);
 		}
 	}
 
@@ -666,19 +663,6 @@ public class SCIMServiceImpl implements SCIMService {
 		LOGGER.debug("[createGroup] Creating group: " + group.getDisplayName());
 		LOGGER.debug(group.toString());
 		boolean duplicate = false;
-		if (groupMap == null) {
-			//TODO: error code
-			throw new OnPremUserManagementException("o23456", "Cannot create the group. The groupMap is null");
-		}
-		for (Map.Entry<String, SCIMGroup> entry : groupMap.entrySet()) {
-			//In this example, let us assume that a group is duplicate if the displayName is the same
-			if (entry.getValue().getDisplayName().equalsIgnoreCase(displayName)) {
-				duplicate = true;
-			}
-		}
-		if (duplicate) {
-			throw new DuplicateGroupException();
-		}
 		String id = generateNextId(GROUP_RESOURCE);
 		group.setId(id);
 		try {
@@ -692,7 +676,6 @@ public class SCIMServiceImpl implements SCIMService {
 			//TODO: error code
 			throw new OnPremUserManagementException("o01234", e.getMessage(), e);
 		}
-		groupMap.put(group.getId(), group);
 		return group;
 	}
 
@@ -709,31 +692,30 @@ public class SCIMServiceImpl implements SCIMService {
 	 *
 	 */
 	public SCIMGroup updateGroup(String id, SCIMGroup group) throws OnPremUserManagementException {
-		SCIMGroup existingGroup = groupMap.get(id);
-		LOGGER.debug("[updateGroup] Updating Group: " + group.getDisplayName());
+		LOGGER.info("[updateGroup] Updating Group: " + group.getDisplayName());
 		LOGGER.debug(group.toString());
+		String searchDN = ldapGroupDn + ldapBaseDn;
+		String oldDN = "";
+		String idLookup = ldapGroupCore.get("id");
+		String ldapFilter = "(" + idLookup + "=" + id +")";
+		SCIMGroup oldGroup;
 		try {
-			if (existingGroup != null) {
-				LdapContext ctx = new InitialLdapContext(env, null);
-				Attributes attrs = constructAttrsFromGroup(group);
-				ctx.destroySubcontext(ldapGroupPre + existingGroup.getDisplayName() + "," + ldapGroupDn + ldapBaseDn);
-				LOGGER.info("[updateGroup] Group " + group.getDisplayName() + " successfully removed.");
-				ctx.createSubcontext(ldapGroupPre + group.getDisplayName() + "," + ldapGroupDn + ldapBaseDn, attrs);
-				ctx.close();
-				LOGGER.info("[updateGroup] Group " + group.getDisplayName() + " successfully re-created.");
-				groupMap.put(id, group);
-				return group;
+			LdapContext ctx = new InitialLdapContext(env, null);
+			ArrayList<Attributes> queryResults = queryLDAP(searchDN, ldapFilter);
+			if(queryResults.size() >= 1) {
+				oldGroup = constructGroupFromAttrs(queryResults.get(0));
+				oldDN = ldapGroupPre + oldGroup.getDisplayName() + "," + ldapGroupDn + ldapBaseDn;
+				ctx.destroySubcontext(oldDN);
+				LOGGER.info("[updateGroup] Group " + oldGroup.getDisplayName() + " successfully deleted from Directory Service.");
 			} else {
-				LOGGER.warn("[updateGroup] Group " + id + " not found, trying to add group.");
-				LdapContext ctx = new InitialLdapContext(env, null);
-				Attributes attrs = constructAttrsFromGroup(group);
-				ctx.createSubcontext(ldapGroupPre + group.getDisplayName() + "," + ldapGroupDn + ldapBaseDn, attrs);
-				ctx.close();
-				LOGGER.info("[updateGroup] Group " + group.getDisplayName() + " successfully created.");
-				groupMap.put(id, group);
-				return group;
+				throw new EntityNotFoundException();
 			}
-		} catch (Exception e) {
+			Attributes attrs = constructAttrsFromGroup(group);
+			ctx.createSubcontext(ldapGroupPre + group.getDisplayName() + "," + ldapGroupDn + ldapBaseDn, attrs);
+			ctx.close();
+			LOGGER.info("[updateGroup] Group " + group.getDisplayName() + " successfully re-created.");
+			return group;
+		} catch (NamingException e) {
 			handleGeneralException(e);
 			throw new OnPremUserManagementException("o01234", e.getMessage(), e);
 		}
@@ -755,20 +737,29 @@ public class SCIMServiceImpl implements SCIMService {
 	public SCIMGroupQueryResponse getGroups(PaginationProperties pageProperties) throws OnPremUserManagementException {
 		SCIMGroupQueryResponse response = new SCIMGroupQueryResponse();
 		LOGGER.info("[getGroups]");
-		int totalResults = groupMap.size();
-		if (pageProperties != null) {
-			//Set the start index
-			response.setStartIndex(pageProperties.getStartIndex());
+		try {
+			ArrayList<Attributes> unprocessedGroups = queryLDAP(ldapGroupDn + ldapBaseDn, ldapGroupFilter);
+			List<SCIMGroup> processedGroups = new ArrayList<SCIMGroup>();
+			for(int i = 0; i < unprocessedGroups.size(); i++) {
+				SCIMGroup group = constructGroupFromAttrs(unprocessedGroups.get(i));
+				processedGroups.add(group);
+			}
+			int totalResults = processedGroups.size();
+			if (pageProperties != null) {
+				//Set the start index
+				response.setStartIndex(pageProperties.getStartIndex());
+			}
+			//In this example we are setting the total results to the number of results in this page. If there are more
+			//results than the number the client asked for (pageProperties.getCount()), then you need to set the total results correctly
+			response.setTotalResults(totalResults);
+			//Set the actual results
+			response.setScimGroups(processedGroups);
+		} catch(NamingException e) {
+			handleGeneralException(e);
+			LOGGER.error(e.getMessage());
+			//TODO: error code
+			throw new OnPremUserManagementException("o01234", e.getMessage(), e);
 		}
-		//In this example we are setting the total results to the number of results in this page. If there are more
-		//results than the number the client asked for (pageProperties.getCount()), then you need to set the total results correctly
-		response.setTotalResults(totalResults);
-		List<SCIMGroup> groups = new ArrayList<SCIMGroup>();
-		for (String key : groupMap.keySet()) {
-			groups.add(groupMap.get(key));
-		}
-		//Set the actual results
-		response.setScimGroups(groups);
 		return response;
 	}
 
@@ -783,13 +774,23 @@ public class SCIMServiceImpl implements SCIMService {
 	 *
 	 */
 	public SCIMGroup getGroup(String id) throws OnPremUserManagementException {
-		SCIMGroup group = groupMap.get(id);
-		LOGGER.info("[getGroup] Id: " + id);
-		if (group != null) {
+		String searchDN = ldapGroupDn + ldapBaseDn;
+		String idLookup = ldapGroupCore.get("id");
+		String ldapFilter = "(" + idLookup + "=" + id +")";
+		SCIMGroup group;
+		try{
+			ArrayList<Attributes> queryResults = queryLDAP(searchDN, ldapFilter);
+			//should never be more than 1 entry
+			if(queryResults.size() >= 1) {
+				group = constructGroupFromAttrs(queryResults.get(0));
+				LOGGER.info("[getGroup] Group found with id: " + id);
+			} else {
+				throw new EntityNotFoundException();
+			}
 			return group;
-		} else {
-			//If you do not find a user/group by the ID, you can throw this exception.
-			throw new EntityNotFoundException();
+		} catch (NamingException e) {
+			handleGeneralException(e);
+			throw new OnPremUserManagementException("o01234", e.getMessage(), e);
 		}
 	}
 
@@ -803,19 +804,25 @@ public class SCIMServiceImpl implements SCIMService {
 	 */
 	public void deleteGroup(String id) throws OnPremUserManagementException, EntityNotFoundException {
 		LOGGER.debug("[deleteGroup] Id: " + id);
-		if (groupMap.containsKey(id)) {
-			SCIMGroup group = groupMap.remove(id);
-			try {
-				LdapContext ctx = new InitialLdapContext(env, null);
-				ctx.destroySubcontext(ldapGroupPre + group.getDisplayName() + "," + ldapGroupDn + ldapBaseDn);
-				LOGGER.info("[deleteGroup] Deleting group: " + id);
+		String searchDN = ldapGroupDn + ldapBaseDn;
+		String idLookup = ldapGroupCore.get("id");
+		String ldapFilter = "(" + idLookup + "=" + id +")";
+		SCIMGroup oldGroup;
+		try{
+			ArrayList<Attributes> queryResults = queryLDAP(searchDN, ldapFilter);
+			LdapContext ctx = new InitialLdapContext(env, null);
+			//should never be more than 1 entry
+			if(queryResults.size() >= 1) {
+				oldGroup = constructGroupFromAttrs(queryResults.get(0));
+				ctx.destroySubcontext(ldapGroupPre + oldGroup.getDisplayName() + "," + ldapGroupDn + ldapBaseDn);
+				LOGGER.info("[deleteGroup] Group found with id: " + id);
 				ctx.close();
-			} catch (NamingException e) {
-				handleGeneralException(e);
+			} else {
+				LOGGER.info("[deleteGroup] No Group found with id: " + id + ". I need an adult.");
 			}
-		} else {
-			LOGGER.warn("[deleteGroup] Group: " + id + " not found, throwing exception.");
-			throw new EntityNotFoundException();
+		} catch (NamingException e) {
+			handleGeneralException(e);
+			throw new OnPremUserManagementException("o01234", e.getMessage(), e);
 		}
 	}
 
@@ -864,10 +871,11 @@ public class SCIMServiceImpl implements SCIMService {
 	 * Uses mappings for custom attributes from properties file.
 	 *
 	 * @param user - SCIMUser object to pull values from
+	 * @param update - is this getting called by update or create
 	 * @return fully built Attributes Object
 	 * @throws InvalidDataTypeException
 	 */
-	private Attributes constructAttrsFromUser(SCIMUser user) throws InvalidDataTypeException {
+	private Attributes constructAttrsFromUser(SCIMUser user, boolean update) throws InvalidDataTypeException {
 		String[] keys = ldapUserCore.keySet().toArray(new String[ldapUserCore.size()]);
 		String active = user.isActive() ? "active" : "inactive";
 		Attributes attrs = new BasicAttributes(true);
@@ -896,10 +904,12 @@ public class SCIMServiceImpl implements SCIMService {
 			} else if(keys[i].equals("password") && (user.getPassword() != null)) {
 				attrs.put(attr);
 				continue;
-			} else if(keys[i].equals("phoneNumbers") && (user.getPhoneNumbers() != null)) {
+			} else if(keys[i].equals("phoneNumbers") && (user.getPhoneNumbers() != null || update)) {
+				//if we're doing an update, we always want the attr in place, either it will have a value or if it doesn't
+				//then having a no value attr will remove it from the ldap entry
 				attrs.put(attr);
 				continue;
-			} else if(keys[i].equals("emails") && (user.getEmails() != null)) {
+			} else if(keys[i].equals("emails") && (user.getEmails() != null || update)) {
 				attrs.put(attr);
 				continue;
 			} else {
@@ -912,7 +922,6 @@ public class SCIMServiceImpl implements SCIMService {
 		//TODO: make this better
 		if(user.getPassword() != null && ldapUserCore.get("password") != null) {
 			Attribute passwd = attrs.get(ldapUserCore.get("password"));
-			//passwd.add(hashPassword(user.getPassword()));
 			passwd.add(user.getPassword());
 		}
 		user.setPassword("");
@@ -942,7 +951,7 @@ public class SCIMServiceImpl implements SCIMService {
 			}
 		}
 		attrs.put(objclass);
-		return constructCustomAttrsFromUser(user, attrs);
+		return constructCustomAttrsFromUser(user, attrs, update);
 	}
 
 	/**
@@ -951,22 +960,24 @@ public class SCIMServiceImpl implements SCIMService {
 	 *
 	 * @param user - SCIMUser object to pull values from
 	 * @param attrs - Attributes to add to SCIMUser object
+	 * @param update - 
 	 * @return fully built Attributes Object
 	 * @throws InvalidDataTypeException
 	 */
-	private Attributes constructCustomAttrsFromUser(SCIMUser user, Attributes attrs) throws InvalidDataTypeException {
+	private Attributes constructCustomAttrsFromUser(SCIMUser user, Attributes attrs, boolean update) throws InvalidDataTypeException {
 		String[] keys = ldapUserCustom.keySet().toArray(new String[ldapUserCustom.size()]);
 		String[] configLine;
 		String[] emptyArr = new String[0];
 		String[] parentNames = emptyArr;
 		Attribute customAttr;
-		Object value = "";
+		Object value;
 		//For each custom attribute mapping in properties, get the appropriate custom value and put it in an Attribute obj
 		for(int i = 0; i < keys.length; i++) {
 			configLine = ldapUserCustom.get(keys[i]);
 			parentNames = emptyArr;
 			if(configLine.length > 3) parentNames = Arrays.copyOfRange(configLine, 3, configLine.length);
-			customAttr = new BasicAttribute(keys[i]);
+			if(attrs.get(keys[i]) != null) customAttr = attrs.get(keys[i]);
+			else customAttr = new BasicAttribute(keys[i]);
 			if(configLine[0].equals("int"))
 				value = user.getCustomIntValue(configLine[1], configLine[2], parentNames);
 			else if(configLine[0].equals("boolean"))
@@ -977,8 +988,10 @@ public class SCIMServiceImpl implements SCIMService {
 				value = user.getCustomDoubleValue(configLine[1], configLine[2], parentNames);
 			else
 				throw new OnPremUserManagementException("o12345", "Unexpected type for Custom attrs in config: " + Arrays.toString(configLine));
-			if(value != null) {
+			if(value != null && !value.equals("")) {
 				customAttr.add(value.toString());
+				attrs.put(customAttr);
+			} else if(update) {
 				attrs.put(customAttr);
 			}
 		}
@@ -1097,7 +1110,7 @@ public class SCIMServiceImpl implements SCIMService {
 	 * @param group - SCIMGroup object to build Attributes object from.
 	 * @return Attributes object that resulted from SCIMGroup object
 	 */
-	private Attributes constructAttrsFromGroup(SCIMGroup group) {
+	private Attributes constructAttrsFromGroup(SCIMGroup group) throws NamingException {
 		Attributes attrs = new BasicAttributes(true);
 		ArrayList<Membership> memberList = new ArrayList<Membership>();
 		String[] keys = ldapGroupCore.keySet().toArray(new String[ldapGroupCore.size()]);
@@ -1163,12 +1176,15 @@ public class SCIMServiceImpl implements SCIMService {
 	 */
 	private SCIMGroup constructGroupFromAttrs(Attributes attrs) throws NamingException {
 		//create objs/get mappings from config file.
+		String ldapFilter = "";
+		String searchDN = ldapUserDn + ldapBaseDn;
 		SCIMGroup group = new SCIMGroup();
 		String cn = attrs.get("cn").get().toString();
 		LOGGER.debug("[constructGroupFromAttrs] Constructing Group " + cn + " from Attrs.");
 		ArrayList<Membership> memberList = new ArrayList<Membership>();
 		String memberAttrLookup = ldapGroupCore.get("members");
 		Attribute memberAttr = null;
+		ArrayList<Attributes> queryResult;
 		if(memberAttrLookup != null) memberAttr = attrs.get(memberAttrLookup);
 		else LOGGER.warn("[constructGroupFromAttrs] Connector.properties did not have members entry for groupCoreMap.");
 		String idLookup = ldapGroupCore.get("id");
@@ -1182,11 +1198,17 @@ public class SCIMServiceImpl implements SCIMService {
 				String memberDn = memberAttr.get(i).toString();
 				DistinguishedName dn = new DistinguishedName(memberDn);
 				LdapRdn memberCn = dn.getLdapRdn(ldapUserPre.split("=")[0]);
-				SCIMUser result = searchUserUsernames(memberCn.getValue());
-				//searches through cache to retrieve ids for group memebers,used in SCIMGroup
-				if(result != null) {
-					Membership memHolder = new Membership(result.getId(), result.getUserName());
-					memberList.add(memHolder);
+				ldapFilter = "(" + ldapUserPre + memberCn.getValue() + ")";
+				queryResult = queryLDAP(searchDN ,ldapFilter);
+				//should only return one result
+				//TODO: check this before using data
+				if(queryResult.size() == 1) {
+					SCIMUser result = constructUserFromAttrs(queryResult.get(0));
+					//searches through cache to retrieve ids for group memebers,used in SCIMGroup
+					if(result != null) {
+						Membership memHolder = new Membership(result.getId(), result.getUserName());
+						memberList.add(memHolder);
+					}
 				}
 			}
 			group.setMembers(memberList);
@@ -1278,8 +1300,26 @@ public class SCIMServiceImpl implements SCIMService {
 				value = attrs.get(lookup).get().toString();
 			}
 		}
-		else LOGGER.warn("[getValueFromAttrs] Connector.properties did not have a " + map + " entry for userCoreMap.");
+		else {
+			LOGGER.warn("[getValueFromAttrs] Connector.properties did not have a " + map + " entry for userCoreMap.");
+		}
 		return value;
 	}
-}
 
+	private ArrayList<Attributes> queryLDAP(String dn, String filter) throws NamingException {
+		ArrayList<Attributes> results = new ArrayList<Attributes>();
+		LdapContext ctx = new InitialLdapContext(env, null);
+		ctx.setRequestControls(null);
+		SearchControls controls = new SearchControls();
+		controls.setSearchScope(SearchControls.SUBTREE_SCOPE);
+		NamingEnumeration<?> namingEnum = ctx.search(dn, filter, controls);
+		while (namingEnum.hasMore()) {
+			SearchResult result = (SearchResult) namingEnum.next();
+			Attributes attrs = result.getAttributes();
+			results.add(attrs);
+		}
+		ctx.close();
+		namingEnum.close();
+		return results;
+	}
+}
