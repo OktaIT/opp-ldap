@@ -1,7 +1,9 @@
 # opp-ldap
 Okta OPP (On Premises Provisioning) connector to LDAP.
 
-This connector simply takes a SCIMResource object from Okta and uses the mappings defined in connector.properties to build an DN and attributes to insert into a LDAP server. Check out the wiki to learn how it works and how to install it.
+This connector simply takes a SCIMResource object from Okta and uses the mappings defined in connector.properties to build an DN and attributes to insert into a LDAP server. 
+
+**Please check out the wiki to learn how it works and how to install it.**
 
 ## Background on OPP
 * [On Premises Provisioning Deployment Guide](https://support.okta.com/articles/Knowledge_Article/46749316-On-Premises-Provisioning-Deployment-Guide)
